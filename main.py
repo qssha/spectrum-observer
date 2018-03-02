@@ -10,278 +10,186 @@ from PyQt4.QtGui import QAction
 from PyQt4.QtGui import QFileDialog
 from PyQt4.QtGui import QIcon
 from PyQt4.QtGui import QMessageBox
-
 from astropy.io import fits
 from specutils.wcs import specwcs
 from specutils import Spectrum1D
 from scipy.interpolate import interp1d
-
 import cmfgenplot  # Скрипт для парсера CMFGEN
 
 
-
 class MainWindow(QtGui.QMainWindow):
-    '''
-    Импорт FITS одномерных спектров
-    '''
+    """Main window class of program for spectral plotting.
+     Attributes:
+         attr1 (list): sys.argv information.
+    """
+    def fits_plot(self):
+        """
+        Method for plotting spectrum from 1D FITS file.
+        If plotting completed successfully, method will change text color in main window,
+        else fits_plot will call fits_error_event for displaying IOError. 
+        """
+        try:
+            fits_file = unicode(QFileDialog.getOpenFileName(self, 'Open FITS file'))
+            if fits_file != '':
+                header = fits.getheader(fits_file)
+                dispersion_start = header['CRVAL1'] - (header['CRPIX1'] - 1) * header['CDELT1']
+                linear_wcs = specwcs.Spectrum1DPolynomialWCS(degree=1, c0=dispersion_start, c1=header['CDELT1'],
+                                                             unit='Angstrom')
+                flux = fits.getdata(fits_file)
+                spectrum = Spectrum1D(flux=flux, wcs=linear_wcs)
+                wave = np.array(spectrum.wavelength)
+                flux = np.array(spectrum.flux)
+                self.pw.plot(wave, flux, pen=pg.mkColor(self.i))
+                self.i += 2
+        except IOError as exception:
+            self.fits_error_event(exception.message)
 
-
-    def v532Plot(self):
-
-        specfilev532 = unicode(QFileDialog.getOpenFileName(self, 'Open v532 file'))
-
-
-
-        if specfilev532 != '':
-
-            contfilev532 = specfilev532[:-4] + "cont"
-
-            #print(specfilev532, contfilev532)
-            contfilev532 = np.loadtxt(contfilev532)
-            specfilev532 = np.loadtxt(specfilev532)
-
-            f = interp1d(contfilev532[:, 0], contfilev532[:, 1])
-            newdata = f(specfilev532[:, 0])
-
-            self.pw.plot(specfilev532[:, 0], ( newdata / specfilev532[:, 1]), pen=(1, self.i))
-
-            self.i += 1
-            '''
-            header = fits.getheader(fitsfile)
-            dispersion_start = header['CRVAL1'] - (header['CRPIX1'] - 1) * header['CDELT1']
-
-            linear_wcs = specwcs.Spectrum1DPolynomialWCS(degree=1, c0=dispersion_start, c1=header['CDELT1'],
-                                                         unit='Angstrom')
-
-            flux = fits.getdata(fitsfile)
-
-            myspec = Spectrum1D(flux=flux, wcs=linear_wcs)
-
-
-
-            wave = np.array(myspec.wavelength)
-
-            flux = np.array(myspec.flux)
-
-            np.savetxt("some.data", zip(flux[0],flux[1]))
-
-
-            self.pw.plot(flux[0], flux[1], pen=(1, self.i))
-
-            self.i += 1
-            '''
-
-
-    def fitsPlot(self):
-
-        fitsfile = unicode(QFileDialog.getOpenFileName(self, 'Open FITS file'))
-
-        if fitsfile != '':
-
-            header = fits.getheader(fitsfile)
-            dispersion_start = header['CRVAL1'] - (header['CRPIX1'] - 1) * header['CDELT1']
-
-            linear_wcs = specwcs.Spectrum1DPolynomialWCS(degree=1, c0=dispersion_start, c1=header['CDELT1'],
-                                                         unit='Angstrom')
-
-            flux = fits.getdata(fitsfile)
-
-            myspec = Spectrum1D(flux=flux, wcs=linear_wcs)
-
-
-
-            wave = np.array(myspec.wavelength)
-
-            flux = np.array(myspec.flux)
-
-            if np.mean(flux) < 10 ** -14: flux *= 10 ** 14
-
-            self.pw.plot(wave, flux, pen=(1, self.i))
-            self.i += 1
-
-    '''
-    Окно подтверждения при закрытии.
-    '''
+    def fits_error_event(self, message):
+        """
+        Method creates window with error message, 
+        when fits_plot raise IOError.
+        :param message: The error message.
+        """
+        QMessageBox.critical(self, "IOError", "Can't read FITS file\n" + message)
 
     def closeEvent(self, event):
-
+        """
+        Method asking user about exit from application
+        :param event: Accept close event
+        """
         reply = QtGui.QMessageBox.question(self, 'Message',
                                            "Are you sure to quit?", QtGui.QMessageBox.Yes |
                                            QtGui.QMessageBox.No, QtGui.QMessageBox.No)
-
         if reply == QtGui.QMessageBox.Yes:
             event.accept()
         else:
             event.ignore()
 
-    '''
-    Импорт данных из CMFGEN.
-    '''
+    def load_lines(self):
+        """
+        Method for plot spectrum lines with labels.
+        Problems with flux < 10**-16
+        """
+        lines_data_file = unicode(QFileDialog.getOpenFileName(self, 'Open file'))
 
-    def cmfgenplot(self):
-        cmffile = QFileDialog.getOpenFileName(self, 'Open file')
+        if lines_data_file != '':
+            lines_data = np.genfromtxt(lines_data_file, dtype=str)
 
-        if cmffile != '':
-            cmfdata = cmfgenplot.spectrinput(cmffile)
-
-            #Временно названия только из гена
-            '''
-            ТЕСТИРОВАНИЕ
-            '''
-
-            cmffile = cmffile[0:-3] + 'cont'
-            cont = cmfgenplot.spectrinput(cmffile)
-
-            print(cmfdata[0,0])
-            print(cont[0,0])
-
-            f = interp1d(cont[:, 0], cont[:, 1])
-            newdata = f(cmfdata[200:-200, 0])
-
-
-            self.pw.plot(cmfdata[200:-200, 0], (cmfdata[200:-200, 1]/newdata), pen=(1, self.i))
-
-            self.i += 1
-
-            del (cmfdata, cmffile)
-
-    '''
-    Загрузить линии элементов из таблицы.
-    '''
-
-    def loadLines(self):
-        linesfile = unicode(QFileDialog.getOpenFileName(self, 'Open file'))
-
-        if linesfile != '':
-            linedata = np.genfromtxt(linesfile, dtype=str)
-
-            for i in range(len(linedata[:, 0])):
+            for i in range(len(lines_data[:, 0])):
                 if i % 3 == 0:
-                    mypos = 0.75
+                    line_label_position = 0.75
                 elif i % 3 == 1:
-                    mypos = 0.85
+                    line_label_position = 0.85
                 else:
-                    mypos = 0.90
-                line = pg.InfiniteLine(pos=float(linedata[i, 0]), label=str(linedata[i, 1] + linedata[i, 0]),
-                                       labelOpts={'position': mypos, 'color': (200, 200, 255)})
-                line.setPen(color=(200, 200, 255), style=QtCore.Qt.DotLine)
+                    line_label_position = 0.90
+                line = pg.InfiniteLine(pos=float(lines_data[i, 0]), label=str(lines_data[i, 1] + lines_data[i, 0]),
+                                       labelOpts={'position': line_label_position, 'color': pg.mkColor("w")})
+                line.setPen(style=QtCore.Qt.DotLine)
                 self.pw.addItem(line)
 
-                del (line)
+    def table_plot(self):
+        """
+        Plot data from simple table.
+        If plotting completed successfully, method will change text color in main window,
+        else table_plot will call table_error_event for displaying IOError. 
+        """
+        try:
+            file_name = unicode(QFileDialog.getOpenFileName(self, 'Open file'))
+            if file_name != '':
+                data = np.loadtxt(file_name)
+                filtered_data = np.array([x for x in data if 2200 < x[0] < 8000])
+                self.pw.plot(filtered_data[:, 0], filtered_data[:, 1], pen=pg.mkColor(self.i))
+                self.i += 2
+        except IOError as exception:
+            self.table_error_event(exception.message)
 
-            del (linesfile, linedata)
+    def table_error_event(self, message):
+        """
+        Method creates window with error message, 
+        when table_plot raise IOError.
+        :param message: The error message.
+        """
+        QMessageBox.critical(self, "IOError", "Can't read table file\n" + message)
 
-    '''
-    Окно для загрузки графика в виде таблицы.
-    '''
-
-    def showDialog(self):
-        fname = unicode(QFileDialog.getOpenFileName(self, 'Open file'))
-
-        if fname != '':
-            data = np.loadtxt(fname)
-            filteredData = np.array([x for x in data if 3800 < x[0] < 7000])
-            if np.mean(filteredData[:, 1]) < 10 ** -14:
-                filteredData[:, 1] = filteredData[:, 1] * 10 ** 14
-            p1 = self.pw.plot(filteredData[:, 0], filteredData[:, 1], pen=(1, self.i))
-
-            self.i += 1
-            del (fname, data, filteredData)
-
-    '''
-    Очистить графическое окно от всех элементов. Цвет = 1
-    '''
-
-    def clearPlot(self):
-        self.i = 1
+    def clear_plot(self):
+        """
+        Remove all plots from widget and reset color
+        """
+        self.i = 0
         self.pw.clear()
 
+    def cmfgen_plot(self):
+        """
+        Method for plotting spectrum from CMFGEN model.
+        If plotting completed successfully, method will change text color in main window,
+        else cmfgen_plot will call cmfgen_error_event for displaying IOError. 
+        """
+        try:
+            cmfgen_filename = unicode(QFileDialog.getOpenFileName(self, 'Open file'))
+
+            if cmfgen_filename != '':
+                cmfgen_modeldata = cmfgenplot.spectr_input(cmfgen_filename)
+                cmfgen_filename = cmfgen_filename[0:-3] + 'cont'
+                cont = cmfgenplot.spectr_input(cmfgen_filename)
+                f = interp1d(cont[:, 0], cont[:, 1])
+                interpolated_data = f(cmfgen_modeldata[200:-200, 0])
+                self.pw.plot(cmfgen_modeldata[ 200:-200, 0 ],
+                               (cmfgen_modeldata[ 200:-200, 1 ] / interpolated_data), pen=pg.mkColor(self.i))
+                self.i += 2
+        except IOError as exception:
+            self.cmfgen_error_event(exception.message)
+
+    def cmfgen_error_event(self, message):
+        """
+        Method creates window with error message, 
+        when cmfgen_plot raise IOError.
+        :param message: The error message.
+        """
+        QMessageBox.critical(self, "IOError", "Can't read CMFGEN model file\n" + message)
+
     def __init__(self):
-        QtGui.QMainWindow.__init__(self)
-
-        '''
+        """
         Инициализируем окно. Добавляем иконку.
-        '''
-
-        self.setWindowIcon(QIcon("web.png"))
-
-        self.setWindowTitle('Plot Spectra')
-
-        '''
         Создаем виджет для графики. Добавляем туда PlotWidget.
-        '''
+        TODO: Создаем графическое окно из которого можно удалять и добавлять графики.
+        c1 = self.pw.plot(np.random.normal(size=100), pen=(255, 0, 0), name="Red curve")
+        self.pw.removeItem(c1)
+        """
+        QtGui.QMainWindow.__init__(self)
+        self.setWindowIcon(QIcon("web.png"))
+        self.setWindowTitle('Plot Spectra')
 
         self.cw = QtGui.QWidget()
         self.setCentralWidget(self.cw)
         self.l = QtGui.QVBoxLayout()
         self.cw.setLayout(self.l)
 
-        # self.pw = pg.PlotWidget(name='Plot')
-        # self.pw.showGrid(x=True, y=True)
-
-        # self.l.addWidget(self.pw)
-
-        '''
-        Создаем графическое окно из которого можно удалять и добавлять графики.
-        c1 = self.pw.plot(np.random.normal(size=100), pen=(255, 0, 0), name="Red curve")
-        self.pw.removeItem(c1)
-        '''
-
         self.win = pg.GraphicsWindow()
-
         self.pw = self.win.addPlot()
         self.pw.showGrid(x=True, y=True)
-
-
-        '''
-        
-
-        Для списка графиков надо создать словарь и хранить там имена!
-
-        a = {}
-
-        '''
-
-        
-
-
-
         self.l.addWidget(self.win)
+        self.i = 0
 
-        '''
-        Для разных цветов на графиках.
-        '''
 
-        self.i = 1
-
-        '''
-        Кнопки + бар. Сигналы и слоты.
-        '''
-
-        openFile = QAction('Open from Table', self)
+        openFile=QAction('Open from Table',self)
         openFile.setStatusTip('Open new File')
-        openFile.triggered.connect(self.showDialog)
+        openFile.triggered.connect(self.table_plot)
 
-        loadLines = QAction('Load Lines', self)
+        loadLines=QAction('Load Lines',self)
         loadLines.setStatusTip('Load some Line')
-        loadLines.triggered.connect(self.loadLines)
+        loadLines.triggered.connect(self.load_lines)
 
-        clearPlot = QAction('Clear', self)
+        clearPlot=QAction('Clear',self)
         clearPlot.setStatusTip('Clear plot')
-        clearPlot.triggered.connect(self.clearPlot)
+        clearPlot.triggered.connect(self.clear_plot)
 
-        cmfPlot = QAction('Open from CMFGEN', self)
+        cmfPlot=QAction('Open from CMFGEN',self)
         cmfPlot.setStatusTip('CMFGEN plot')
-        cmfPlot.triggered.connect(self.cmfgenplot)
+        cmfPlot.triggered.connect(self.cmfgen_plot)
 
-        fitsPlot = QAction('Open from FITS', self)
+        fitsPlot=QAction('Open from FITS',self)
         fitsPlot.setStatusTip('CMFGEN plot')
-        fitsPlot.triggered.connect(self.fitsPlot)
-
-
-        v532Plot = QAction('Open v532', self)
-        v532Plot.setStatusTip('v532 plot')
-        v532Plot.triggered.connect(self.v532Plot)
+        fitsPlot.triggered.connect(self.fits_plot)
 
         menubar = self.menuBar()
         menubar.addAction(fitsPlot)
@@ -289,11 +197,9 @@ class MainWindow(QtGui.QMainWindow):
         menubar.addAction(cmfPlot)
         menubar.addAction(loadLines)
         menubar.addAction(clearPlot)
-        menubar.addAction(v532Plot)
 
 
 app = QtGui.QApplication(sys.argv)
-
 main = MainWindow()
-main.showMaximized()
+main.show()
 sys.exit(app.exec_())

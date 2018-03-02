@@ -1,39 +1,62 @@
 import numpy as np
 
 
-def spectrinput(filename):
-    infile = open(filename, 'r')
-    
-    filelist = infile.read().replace("\n", " ").split(" ")
-    
-    numfreq = int(filelist[6])
-    filelist.pop(6)
-    
-    freqfluxlist = []
-  
-    for item in filelist:
-        try:
-            item = np.float64(eval(item))
-            if (item < 0): item = 0
-            freqfluxlist.append(item)
-        except:
-            if (item != ''): print(item, type(item))
-            continue
-    
-    print(numfreq)
-    print(freqfluxlist[numfreq])
-    print(len(freqfluxlist)/2)
+def spectr_input(file_name):
+    """
+    Parse multicolumn fortran data file from CMFGEN
+    :param file_name: CMFGEN model filename 
+    :return: np.array(wave, flux)
+    """
+    input_file = open(file_name,'r')
+    freq_flux_list = []
+    all_lines = input_file.readlines();
+
+    try:
+        [parse_line(line, freq_flux_list) for line in all_lines]
+        xfreq = np.array(freq_flux_list[0:len(freq_flux_list) / 2], dtype=np.float64)
+        yint = np.array(freq_flux_list[len(freq_flux_list) / 2:], dtype=np.float64)
+
+    except ValueError as exception:
+        print("Value Error: " + exception.message)
+        freq_flux_list = []
+
+        [parse_line_eval(line,freq_flux_list) for line in all_lines]
+        xfreq = np.array(freq_flux_list[0:len(freq_flux_list) / 2], dtype=np.float64)
+        yint = np.array(freq_flux_list[len(freq_flux_list) / 2:], dtype=np.float64)
+
+    xfreq = (3e3) / xfreq
+    yint = (yint) / (3.33e4 * xfreq * xfreq)
+    spectum_model = np.transpose([xfreq, yint])
+    xmin = 4100
+    xmax = 8000
+
+    return np.array([item for item in spectum_model if xmin < item[0] < xmax])
 
 
-    xfreq = np.array(freqfluxlist[0:numfreq])
-    yint = np.array(freqfluxlist[numfreq:])
-    
-    xfreq = (3e3)/xfreq
-    yint = (yint)/(3.33e4*xfreq*xfreq)
+def parse_line(line, freq_flux_list):
+    """
+    Split and parse line
+    :param line: line to parse
+    :param freq_flux_list:  list with all items
+    """
+    line = line.rstrip().split()
+    if line == [] or "." not in line[0]:
+        return
+    elif eval(line[0]) < 0 or eval(line[-1]) < 0:
+        freq_flux_list.extend(list(map(lambda x: eval(x),line)))
+    else:
+        freq_flux_list.extend(line)
 
 
-
-    swag = np.transpose([xfreq, yint])
-
-    return np.array([item for item in swag if 3800 < item[0] < 7000])
-
+def parse_line_eval(line, freq_flux_list):
+    """
+    Safe(Eval) split and parse line
+    Example: '1-303' can't be cast to float
+    :param line: line to parse
+    :param freq_flux_list:  list with all items
+    """
+    line = line.rstrip().split()
+    if line == [] or "." not in line[0]:
+        return
+    else:
+        freq_flux_list.extend(list(map(lambda x: eval(x),line)))
