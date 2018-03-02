@@ -27,10 +27,8 @@ def spectr_input(file_name):
     xfreq = (3e3) / xfreq
     yint = (yint) / (3.33e4 * xfreq * xfreq)
     spectum_model = np.transpose([xfreq, yint])
-    xmin = 4100
-    xmax = 8000
 
-    return np.array([item for item in spectum_model if xmin < item[0] < xmax])
+    return spectum_model
 
 
 def parse_line(line, freq_flux_list):

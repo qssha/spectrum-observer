@@ -125,21 +125,28 @@ class MainWindow(QtGui.QMainWindow):
         else cmfgen_plot will call cmfgen_error_event for displaying IOError. 
         """
         try:
-            cmfgen_filename = unicode(QFileDialog.getOpenFileName(self, 'Open file'))
+            cmfgen_filename = unicode(QFileDialog.getOpenFileName(self ,'Open file'))
+
 
             if cmfgen_filename != '':
                 cmfgen_modeldata = cmfgenplot.spectr_input(cmfgen_filename)
                 cmfgen_filename = cmfgen_filename[0:-3] + 'cont'
                 cont = cmfgenplot.spectr_input(cmfgen_filename)
                 f = interp1d(cont[:, 0], cont[:, 1])
-                interpolated_data = f(cmfgen_modeldata[200:-200, 0])
-                self.pw.plot(cmfgen_modeldata[ 200:-200, 0 ],
-                               (cmfgen_modeldata[ 200:-200, 1 ] / interpolated_data), pen=pg.mkColor(self.i))
+
+                x_limit_left = 3800
+                x_limit_right = 8000
+                cmfgen_modeldata = cmfgen_modeldata[:np.where(cmfgen_modeldata[:, 0] < x_limit_right)[0][-1], :]
+                cmfgen_modeldata = cmfgen_modeldata[np.where(cmfgen_modeldata[:, 0] > x_limit_left)[0][0]:, :]
+
+                interpolated_data = f(cmfgen_modeldata[:, 0])
+                self.pw.plot(cmfgen_modeldata[:, 0],
+                             (cmfgen_modeldata[:, 1] / interpolated_data), pen=pg.mkColor(self.i))
                 self.i += 2
         except IOError as exception:
             self.cmfgen_error_event(exception.message)
 
-    def cmfgen_error_event(self, message):
+    def cmfgen_error_event(self,message):
         """
         Method creates window with error message, 
         when cmfgen_plot raise IOError.
@@ -170,33 +177,32 @@ class MainWindow(QtGui.QMainWindow):
         self.l.addWidget(self.win)
         self.i = 0
 
+        open_file=QAction('Open from Table', self)
+        open_file.setStatusTip('Open new File')
+        open_file.triggered.connect(self.table_plot)
 
-        openFile=QAction('Open from Table',self)
-        openFile.setStatusTip('Open new File')
-        openFile.triggered.connect(self.table_plot)
+        load_lines=QAction('Load Lines', self)
+        load_lines.setStatusTip('Load some Line')
+        load_lines.triggered.connect(self.load_lines)
 
-        loadLines=QAction('Load Lines',self)
-        loadLines.setStatusTip('Load some Line')
-        loadLines.triggered.connect(self.load_lines)
+        clear_plot=QAction('Clear', self)
+        clear_plot.setStatusTip('Clear plot')
+        clear_plot.triggered.connect(self.clear_plot)
 
-        clearPlot=QAction('Clear',self)
-        clearPlot.setStatusTip('Clear plot')
-        clearPlot.triggered.connect(self.clear_plot)
+        cmf_plot=QAction('Open from CMFGEN', self)
+        cmf_plot.setStatusTip('CMFGEN plot')
+        cmf_plot.triggered.connect(self.cmfgen_plot)
 
-        cmfPlot=QAction('Open from CMFGEN',self)
-        cmfPlot.setStatusTip('CMFGEN plot')
-        cmfPlot.triggered.connect(self.cmfgen_plot)
+        fits_plot=QAction('Open from FITS', self)
+        fits_plot.setStatusTip('CMFGEN plot')
+        fits_plot.triggered.connect(self.fits_plot)
 
-        fitsPlot=QAction('Open from FITS',self)
-        fitsPlot.setStatusTip('CMFGEN plot')
-        fitsPlot.triggered.connect(self.fits_plot)
-
-        menubar = self.menuBar()
-        menubar.addAction(fitsPlot)
-        menubar.addAction(openFile)
-        menubar.addAction(cmfPlot)
-        menubar.addAction(loadLines)
-        menubar.addAction(clearPlot)
+        menu_bar = self.menuBar()
+        menu_bar.addAction(fits_plot)
+        menu_bar.addAction(open_file)
+        menu_bar.addAction(cmf_plot)
+        menu_bar.addAction(load_lines)
+        menu_bar.addAction(clear_plot)
 
 
 app = QtGui.QApplication(sys.argv)
