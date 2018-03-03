@@ -99,7 +99,7 @@ class MainWindow(QtGui.QMainWindow):
         Call add_to_list_widget with plot item name.
         """
         try:
-            file_name = unicode(QFileDialog.getOpenFileName(self, 'Open file'))
+            file_name = unicode(QFileDialog.getOpenFileName(self, 'Open two-column table data file'))
             if file_name != '':
                 data = np.loadtxt(file_name)
                 filtered_data = np.array([x for x in data if 2200 < x[0] < 8000])
@@ -136,23 +136,27 @@ class MainWindow(QtGui.QMainWindow):
         Call add_to_list_widget with plot item name.
         """
         try:
-            cmfgen_filename = unicode(QFileDialog.getOpenFileName(self ,'Open file'))
-            QMessageBox.question(self, 'Message', "Do you like Python?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            cmfgen_filename = unicode(QFileDialog.getOpenFileName(self ,'Open CMFGEN model file'))
 
             if cmfgen_filename != '':
-                cmfgen_modeldata = cmfgenplot.spectr_input(cmfgen_filename)
-                cmfgen_filename = cmfgen_filename[0:-3] + 'cont'
-                cont = cmfgenplot.spectr_input(cmfgen_filename)
-                f = interp1d(cont[:, 0], cont[:, 1])
+                reply = QMessageBox.question(self, 'Message', "Do you want to plot normilized spectrum from *cont file?",
+                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
 
                 x_limit_left = 3800
                 x_limit_right = 8000
+                cmfgen_modeldata = cmfgenplot.spectr_input(cmfgen_filename)
                 cmfgen_modeldata = cmfgen_modeldata[:np.where(cmfgen_modeldata[:, 0] < x_limit_right)[0][-1], :]
                 cmfgen_modeldata = cmfgen_modeldata[np.where(cmfgen_modeldata[:, 0] > x_limit_left)[0][0]:, :]
 
-                interpolated_data = f(cmfgen_modeldata[:, 0])
-                current_plot = self.pw.plot(cmfgen_modeldata[:, 0],
-                             (cmfgen_modeldata[:, 1] / interpolated_data), pen=pg.mkColor(self.i))
+                if reply == QMessageBox.Yes:
+                    cmfgen_filename_cont = cmfgen_filename[0:-3] + 'cont'
+                    cont = cmfgenplot.spectr_input(cmfgen_filename_cont)
+                    f = interp1d(cont[:, 0], cont[:, 1])
+                    interpolated_data = f(cmfgen_modeldata[:, 0])
+                    current_plot = self.pw.plot(cmfgen_modeldata[:, 0],
+                                 (cmfgen_modeldata[:, 1] / interpolated_data), pen=pg.mkColor(self.i))
+                else:
+                    current_plot = self.pw.plot(cmfgen_modeldata[:, 0], cmfgen_modeldata[:, 1], pen=pg.mkColor(self.i))
                 plot_name = cmfgen_filename.split("/")[-3]
                 self.all_plot_items[plot_name] = current_plot
                 self.add_to_list_widget(plot_name)
