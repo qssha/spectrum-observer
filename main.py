@@ -6,7 +6,7 @@ from PyQt4 import QtGui, QtCore
 import pyqtgraph as pg
 import numpy as np
 import matplotlib.pyplot as plt
-from PyQt4.QtGui import QAction
+from PyQt4.QtGui import QAction, QPushButton, QListWidget, QListWidgetItem
 from PyQt4.QtGui import QFileDialog
 from PyQt4.QtGui import QIcon
 from PyQt4.QtGui import QMessageBox
@@ -26,7 +26,8 @@ class MainWindow(QtGui.QMainWindow):
         """
         Method for plotting spectrum from 1D FITS file.
         If plotting completed successfully, method will change text color in main window,
-        else fits_plot will call fits_error_event for displaying IOError. 
+        else fits_plot will call fits_error_event for displaying IOError.
+        Call add_to_list_widget with plot item name.
         """
         try:
             fits_file = unicode(QFileDialog.getOpenFileName(self, 'Open FITS file'))
@@ -39,7 +40,10 @@ class MainWindow(QtGui.QMainWindow):
                 spectrum = Spectrum1D(flux=flux, wcs=linear_wcs)
                 wave = np.array(spectrum.wavelength)
                 flux = np.array(spectrum.flux)
-                self.pw.plot(wave, flux, pen=pg.mkColor(self.i))
+                current_plot = self.pw.plot(wave, flux, pen=pg.mkColor(self.i))
+                plot_name = fits_file.split("/")[-1]
+                self.all_plot_items[plot_name] = current_plot
+                self.add_to_list_widget(plot_name)
                 self.i += 2
         except IOError as exception:
             self.fits_error_event(exception.message)
@@ -91,14 +95,18 @@ class MainWindow(QtGui.QMainWindow):
         """
         Plot data from simple table.
         If plotting completed successfully, method will change text color in main window,
-        else table_plot will call table_error_event for displaying IOError. 
+        else table_plot will call table_error_event for displaying IOError.
+        Call add_to_list_widget with plot item name.
         """
         try:
             file_name = unicode(QFileDialog.getOpenFileName(self, 'Open file'))
             if file_name != '':
                 data = np.loadtxt(file_name)
                 filtered_data = np.array([x for x in data if 2200 < x[0] < 8000])
-                self.pw.plot(filtered_data[:, 0], filtered_data[:, 1], pen=pg.mkColor(self.i))
+                current_plot = self.pw.plot(filtered_data[:, 0], filtered_data[:, 1], pen=pg.mkColor(self.i))
+                plot_name = file_name.split("/")[-1]
+                self.all_plot_items[plot_name] = current_plot
+                self.add_to_list_widget(plot_name)
                 self.i += 2
         except IOError as exception:
             self.table_error_event(exception.message)
@@ -117,16 +125,19 @@ class MainWindow(QtGui.QMainWindow):
         """
         self.i = 0
         self.pw.clear()
+        self.all_plot_items = {}
+        self.listWidget.clear()
 
     def cmfgen_plot(self):
         """
         Method for plotting spectrum from CMFGEN model.
         If plotting completed successfully, method will change text color in main window,
-        else cmfgen_plot will call cmfgen_error_event for displaying IOError. 
+        else cmfgen_plot will call cmfgen_error_event for displaying IOError.
+        Call add_to_list_widget with plot item name.
         """
         try:
             cmfgen_filename = unicode(QFileDialog.getOpenFileName(self ,'Open file'))
-
+            QMessageBox.question(self, 'Message', "Do you like Python?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
 
             if cmfgen_filename != '':
                 cmfgen_modeldata = cmfgenplot.spectr_input(cmfgen_filename)
@@ -140,8 +151,11 @@ class MainWindow(QtGui.QMainWindow):
                 cmfgen_modeldata = cmfgen_modeldata[np.where(cmfgen_modeldata[:, 0] > x_limit_left)[0][0]:, :]
 
                 interpolated_data = f(cmfgen_modeldata[:, 0])
-                self.pw.plot(cmfgen_modeldata[:, 0],
+                current_plot = self.pw.plot(cmfgen_modeldata[:, 0],
                              (cmfgen_modeldata[:, 1] / interpolated_data), pen=pg.mkColor(self.i))
+                plot_name = cmfgen_filename.split("/")[-3]
+                self.all_plot_items[plot_name] = current_plot
+                self.add_to_list_widget(plot_name)
                 self.i += 2
         except IOError as exception:
             self.cmfgen_error_event(exception.message)
@@ -154,6 +168,21 @@ class MainWindow(QtGui.QMainWindow):
         """
         QMessageBox.critical(self, "IOError", "Can't read CMFGEN model file\n" + message)
 
+    def add_to_list_widget(self, name):
+        """
+        Add item to widget list with name
+        :param name: Plot item name 
+        """
+        item = QListWidgetItem('%s' % name)
+        item.setBackgroundColor(pg.mkColor(self.i))
+        self.listWidget.addItem(item)
+
+    def list_widget_clear_selection(self):
+        """
+        Clear widget list 
+        """
+        self.listWidget.clearSelection()
+
     def __init__(self):
         """
         Инициализируем окно. Добавляем иконку.
@@ -164,36 +193,61 @@ class MainWindow(QtGui.QMainWindow):
         """
         QtGui.QMainWindow.__init__(self)
         self.setWindowIcon(QIcon("web.png"))
-        self.setWindowTitle('Plot Spectra')
+        self.setWindowTitle("Spectrum observer")
 
         self.cw = QtGui.QWidget()
         self.setCentralWidget(self.cw)
-        self.l = QtGui.QVBoxLayout()
+        self.l = QtGui.QHBoxLayout()
         self.cw.setLayout(self.l)
+
+
+        self.init_ui()
 
         self.win = pg.GraphicsWindow()
         self.pw = self.win.addPlot()
         self.pw.showGrid(x=True, y=True)
         self.l.addWidget(self.win)
-        self.i = 0
 
-        open_file=QAction('Open from Table', self)
+        self.i = 0
+        self.all_plot_items = {}
+
+    def init_ui(self):
+        """
+        Buttons and widgets init
+        """
+        self.title = QtGui.QPushButton('Unselect all plots', self)
+        self.title.clicked.connect(self.list_widget_clear_selection)
+        self.title.setFixedWidth(150)
+        horizontalLayout = QtGui.QVBoxLayout()
+        horizontalLayout.addWidget(self.title)
+
+        self.listWidget = QListWidget()
+        self.listWidget.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
+
+        self.listWidget.setFixedHeight(175)
+        self.listWidget.setFixedWidth(150)
+        horizontalLayout.addWidget(self.listWidget)
+
+        horizontalLayout.addStretch()
+        self.l.addLayout(horizontalLayout)
+
+        open_file = QAction('Open from Table', self)
         open_file.setStatusTip('Open new File')
         open_file.triggered.connect(self.table_plot)
 
-        load_lines=QAction('Load Lines', self)
+        load_lines = QAction('Load Lines', self)
         load_lines.setStatusTip('Load some Line')
         load_lines.triggered.connect(self.load_lines)
 
-        clear_plot=QAction('Clear', self)
+        clear_plot = QAction('Clear', self)
         clear_plot.setStatusTip('Clear plot')
         clear_plot.triggered.connect(self.clear_plot)
 
-        cmf_plot=QAction('Open from CMFGEN', self)
+        cmf_plot = QAction('Open from CMFGEN', self)
         cmf_plot.setStatusTip('CMFGEN plot')
         cmf_plot.triggered.connect(self.cmfgen_plot)
 
-        fits_plot=QAction('Open from FITS', self)
+        fits_plot = QAction('Open from FITS', self)
         fits_plot.setStatusTip('CMFGEN plot')
         fits_plot.triggered.connect(self.fits_plot)
 
