@@ -6,7 +6,7 @@ from PyQt4 import QtGui, QtCore
 import pyqtgraph as pg
 import numpy as np
 import matplotlib.pyplot as plt
-from PyQt4.QtGui import QAction, QPushButton, QListWidget, QListWidgetItem
+from PyQt4.QtGui import QAction, QPushButton, QListWidget, QListWidgetItem, QLabel
 from PyQt4.QtGui import QFileDialog
 from PyQt4.QtGui import QIcon
 from PyQt4.QtGui import QMessageBox
@@ -139,7 +139,7 @@ class MainWindow(QtGui.QMainWindow):
             cmfgen_filename = unicode(QFileDialog.getOpenFileName(self ,'Open CMFGEN model file'))
 
             if cmfgen_filename != '':
-                reply = QMessageBox.question(self, 'Message', "Do you want to plot normilized spectrum from *cont file?",
+                reply = QMessageBox.question(self, 'Message', "Do you want to plot normalized spectrum from *cont file?",
                                      QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
 
                 x_limit_left = 3800
@@ -178,6 +178,7 @@ class MainWindow(QtGui.QMainWindow):
         :param name: Plot item name 
         """
         item = QListWidgetItem('%s' % name)
+        # print(self.all_plot_items[unicode(item.text())].getData())
         item.setBackgroundColor(pg.mkColor(self.i))
         self.listWidget.addItem(item)
 
@@ -186,6 +187,38 @@ class MainWindow(QtGui.QMainWindow):
         Clear widget list 
         """
         self.listWidget.clearSelection()
+
+    def mouse_moved(self, evt):
+        """
+        Call for mouse move event
+        :param evt Mouse event: 
+        """
+        mouse_point = self.pw.vb.mapSceneToView(evt[0])
+        self.label.setText("x = %0.2f, y = %0.2e" % (
+            mouse_point.x(), mouse_point.y()))
+
+    def remove_selected_plots(self):
+        """
+        Remove selected items from listWidget from plot, listWidget
+         and all_plot_items dictionary.
+        """
+        for item in self.listWidget.selectedItems():
+            name = unicode(item.text())
+            self.pw.removeItem(self.all_plot_items[name])
+            self.all_plot_items.pop(name)
+            self.listWidget.takeItem(self.listWidget.row(item))
+
+    def export_selected_plots(self):
+        file = unicode(QFileDialog.getExistingDirectory(self, "Select Directory"))
+
+    def calculate_flux_from_distance(self):
+        pass
+
+    def smooth_selected_plots(self):
+        pass
+
+    def unred_selected_plots(self):
+        pass
 
     def __init__(self):
         """
@@ -204,12 +237,11 @@ class MainWindow(QtGui.QMainWindow):
         self.l = QtGui.QHBoxLayout()
         self.cw.setLayout(self.l)
 
-
-        self.init_ui()
-
         self.win = pg.GraphicsWindow()
         self.pw = self.win.addPlot()
         self.pw.showGrid(x=True, y=True)
+
+        self.init_ui()
         self.l.addWidget(self.win)
 
         self.i = 0
@@ -219,21 +251,40 @@ class MainWindow(QtGui.QMainWindow):
         """
         Buttons and widgets init
         """
-        self.title = QtGui.QPushButton('Unselect all plots', self)
-        self.title.clicked.connect(self.list_widget_clear_selection)
-        self.title.setFixedWidth(150)
-        horizontalLayout = QtGui.QVBoxLayout()
-        horizontalLayout.addWidget(self.title)
+        self.unselect = QtGui.QPushButton('Unselect all plots', self)
+        self.unselect.clicked.connect(self.list_widget_clear_selection)
+        self.unselect.setFixedWidth(150)
+
+        self.remove = QtGui.QPushButton('Remove', self)
+        self.remove.clicked.connect(self.remove_selected_plots)
+        self.remove.setFixedWidth(75)
+
+        self.export = QtGui.QPushButton('Export', self)
+        self.export.clicked.connect(self.export_selected_plots)
+        self.export.setFixedWidth(75)
+
+        self.vertical_layout = QtGui.QVBoxLayout()
+        self.vertical_layout.addWidget(self.unselect)
 
         self.listWidget = QListWidget()
         self.listWidget.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
 
         self.listWidget.setFixedHeight(175)
         self.listWidget.setFixedWidth(150)
-        horizontalLayout.addWidget(self.listWidget)
+        self.vertical_layout.addWidget(self.listWidget)
 
-        horizontalLayout.addStretch()
-        self.l.addLayout(horizontalLayout)
+        self.horizontal_first = QtGui.QHBoxLayout()
+        self.horizontal_first.addWidget(self.remove)
+        self.horizontal_first.addWidget(self.export)
+        self.vertical_layout.addLayout(self.horizontal_first)
+
+        self.vertical_layout.addStretch()
+
+        self.label = QLabel()
+        self.proxy = pg.SignalProxy(self.pw.scene().sigMouseMoved, rateLimit=3, slot=self.mouse_moved)
+        self.vertical_layout.addWidget(self.label)
+
+        self.l.addLayout(self.vertical_layout)
 
         open_file = QAction('Open from Table', self)
         open_file.setStatusTip('Open new File')
