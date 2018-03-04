@@ -5,7 +5,7 @@ import sys
 from PyQt4 import QtGui, QtCore
 import pyqtgraph as pg
 import numpy as np
-from PyQt4.QtGui import QAction, QPushButton, QListWidget, QListWidgetItem, QLabel
+from PyQt4.QtGui import QAction, QPushButton, QListWidget, QListWidgetItem, QLabel, QInputDialog
 from PyQt4.QtGui import QFileDialog
 from PyQt4.QtGui import QIcon
 from PyQt4.QtGui import QMessageBox
@@ -125,7 +125,9 @@ class MainWindow(QtGui.QMainWindow):
         self.i = 0
         self.pw.clear()
         self.all_plot_items = {}
+        self.all_point_items = {}
         self.listWidget.clear()
+        self.listPointWidget.clear()
 
     def cmfgen_plot(self):
         """
@@ -192,9 +194,9 @@ class MainWindow(QtGui.QMainWindow):
         Call for mouse move event
         :param evt Mouse event: 
         """
-        mouse_point = self.pw.vb.mapSceneToView(evt[0])
+        self.mouse_point = self.pw.vb.mapSceneToView(evt[0])
         self.label.setText("x = %0.2f, y = %0.2e" % (
-            mouse_point.x(), mouse_point.y()))
+            self.mouse_point.x(), self.mouse_point.y()))
 
     def remove_selected_plots(self):
         """
@@ -218,8 +220,43 @@ class MainWindow(QtGui.QMainWindow):
                 export_file_name = export_directory_name + "/" + name + ".data"
                 np.savetxt(export_file_name, np.transpose(self.all_plot_items[name].getData()))
 
-    def calculate_flux_from_distance(self):
-        pass
+    def add_to_list_point_widget(self, event):
+        if event.modifiers() == QtCore.Qt.ControlModifier:
+            x = np.array([self.mouse_point.x()])
+            y = np.array([self.mouse_point.y()])
+            name = "x = %0.2f, y = %0.2e" % (self.mouse_point.x(), self.mouse_point.y())
+            current_point = self.pw.plot(x, y, pen=None, symbol='t', symbolPen=None, symbolSize=10, symbolBrush=pg.mkColor(1))
+            self.all_point_items[name] = current_point
+            item = QListWidgetItem('%s' % name)
+            self.listPointWidget.addItem(item)
+
+    def remove_selected_points(self):
+        for selected_item in self.listPointWidget.selectedItems():
+            name = unicode(selected_item.text())
+            self.pw.removeItem(self.all_point_items[name])
+            self.all_point_items.pop(name)
+            self.listPointWidget.takeItem(self.listPointWidget.row(selected_item))
+
+    def list_point_widget_clear_selection(self):
+        """
+        Clear point widget list 
+        """
+        self.listPointWidget.clearSelection()
+
+    def calculate_flux_for_selected_plots(self):
+        text, ok = QInputDialog.getText(self, 'Rescale fluxes from distance', 'Rescaling fluxes to 1 kpc.\n'
+                                                                              'Enter distance to object(s) in kpc,'
+                                                                              ' for example, 3 or 2.3 * 10** 3')
+        try:
+            if text != '' and ok is True:
+                distance = eval(str(text))
+                for selected_item in self.listWidget.selectedItems():
+                    name = unicode(selected_item.text())
+                    data = np.transpose(self.all_plot_items[name].getData())
+                    data[:, 1] = data[:, 1] * distance**2
+                    self.all_plot_items[name].setData(data)
+        except NameError as exception:
+            self.name_error_event(exception.message)
 
     def smooth_selected_plots(self):
         pass
@@ -227,14 +264,22 @@ class MainWindow(QtGui.QMainWindow):
     def unred_selected_plots(self):
         pass
 
-    def calulate_red_shift(self):
+    def calculate_red_shift_for_selected_plots(self):
         pass
 
-    def calculate_continuum(self):
+    def calculate_continuum_for_selected_plots(self):
         pass
 
-    def calculate_fwhm(self):
+    def calculate_fwhm_for_intervals(self):
         pass
+
+    def name_error_event(self,message):
+        """
+        Method creates window with error message, 
+        when program can't evaluate input string
+        :param message: The error message.
+        """
+        QMessageBox.critical(self, "IOError", "Can't evaluate input string\n" + message)
 
     def __init__(self):
         """
@@ -253,48 +298,104 @@ class MainWindow(QtGui.QMainWindow):
         self.win = pg.GraphicsWindow()
         self.pw = self.win.addPlot()
         self.pw.showGrid(x=True, y=True)
+        #self.pw.disableAutoRange()
 
         self.init_ui()
         self.l.addWidget(self.win)
 
         self.i = 0
         self.all_plot_items = {}
+        self.all_point_items = {}
 
     def init_ui(self):
         """
         Buttons and widgets init
         """
+        self.vertical_layout = QtGui.QVBoxLayout()
+
         self.unselect = QtGui.QPushButton('Unselect all plots', self)
         self.unselect.clicked.connect(self.list_widget_clear_selection)
-        self.unselect.setFixedWidth(150)
+        self.unselect.setFixedWidth(170)
 
         self.remove = QtGui.QPushButton('Remove', self)
         self.remove.clicked.connect(self.remove_selected_plots)
-        self.remove.setFixedWidth(75)
+        self.remove.setFixedWidth(85)
 
         self.export = QtGui.QPushButton('Export', self)
         self.export.clicked.connect(self.export_selected_plots)
-        self.export.setFixedWidth(75)
-
-        self.vertical_layout = QtGui.QVBoxLayout()
-        self.vertical_layout.addWidget(self.unselect)
+        self.export.setFixedWidth(85)
 
         self.listWidget = QListWidget()
         self.listWidget.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
-
-        self.listWidget.setFixedHeight(175)
-        self.listWidget.setFixedWidth(150)
-        self.vertical_layout.addWidget(self.listWidget)
+        self.listWidget.setFixedHeight(125)
+        self.listWidget.setFixedWidth(170)
 
         self.horizontal_first = QtGui.QHBoxLayout()
         self.horizontal_first.addWidget(self.remove)
         self.horizontal_first.addWidget(self.export)
-        self.vertical_layout.addLayout(self.horizontal_first)
-
-        self.vertical_layout.addStretch()
 
         self.label = QLabel()
         self.proxy = pg.SignalProxy(self.pw.scene().sigMouseMoved, rateLimit=3, slot=self.mouse_moved)
+
+        self.pw.scene().sigMouseClicked.connect(self.add_to_list_point_widget)
+
+        self.unselect_points = QtGui.QPushButton('Unselect all points', self)
+        self.unselect_points.clicked.connect(self.list_point_widget_clear_selection)
+        self.unselect_points.setFixedWidth(170)
+
+        self.listPointWidget = QListWidget()
+        self.listPointWidget.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
+        self.listPointWidget.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
+        self.listPointWidget.setFixedHeight(175)
+        self.listPointWidget.setFixedWidth(170)
+
+        self.remove_points = QtGui.QPushButton('Remove point(s)', self)
+        self.remove_points.clicked.connect(self.remove_selected_points)
+        self.remove_points.setFixedWidth(170)
+
+        self.horizontal_second = QtGui.QHBoxLayout()
+        self.calculate_flux = QtGui.QPushButton('Distance', self)
+        self.calculate_flux.clicked.connect(self.calculate_flux_for_selected_plots)
+        self.calculate_flux.setFixedWidth(85)
+        self.calculate_redshift = QtGui.QPushButton('Red shift', self)
+        self.calculate_redshift.clicked.connect(self.calculate_red_shift_for_selected_plots)
+        self.calculate_redshift.setFixedWidth(85)
+
+        self.horizontal_second.addWidget(self.calculate_flux)
+        self.horizontal_second.addWidget(self.calculate_redshift)
+
+        self.horizontal_third = QtGui.QHBoxLayout()
+        self.calculate_smooth = QtGui.QPushButton('Smooth', self)
+        self.calculate_smooth.clicked.connect(self.smooth_selected_plots)
+        self.calculate_smooth.setFixedWidth(85)
+        self.calculate_unred = QtGui.QPushButton('Unred', self)
+        self.calculate_unred.clicked.connect(self.unred_selected_plots)
+        self.calculate_unred.setFixedWidth(85)
+
+        self.horizontal_third.addWidget(self.calculate_smooth)
+        self.horizontal_third.addWidget(self.calculate_unred)
+
+        self.horizontal_fourth = QtGui.QHBoxLayout()
+        self.calculate_continuum = QtGui.QPushButton('Continuum', self)
+        self.calculate_continuum.clicked.connect(self.calculate_continuum_for_selected_plots)
+        self.calculate_continuum.setFixedWidth(85)
+        self.calculate_fwhm = QtGui.QPushButton('FWHM', self)
+        self.calculate_fwhm.clicked.connect(self.calculate_fwhm_for_intervals)
+        self.calculate_fwhm.setFixedWidth(85)
+
+        self.horizontal_fourth.addWidget(self.calculate_continuum)
+        self.horizontal_fourth.addWidget(self.calculate_fwhm)
+
+        self.vertical_layout.addWidget(self.unselect)
+        self.vertical_layout.addWidget(self.listWidget)
+        self.vertical_layout.addLayout(self.horizontal_first)
+        self.vertical_layout.addLayout(self.horizontal_second)
+        self.vertical_layout.addLayout(self.horizontal_third)
+        self.vertical_layout.addLayout(self.horizontal_fourth)
+        self.vertical_layout.addWidget(self.unselect_points)
+        self.vertical_layout.addWidget(self.listPointWidget)
+        self.vertical_layout.addWidget(self.remove_points)
+        self.vertical_layout.addStretch()
         self.vertical_layout.addWidget(self.label)
 
         self.l.addLayout(self.vertical_layout)
