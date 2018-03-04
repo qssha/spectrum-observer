@@ -5,7 +5,6 @@ import sys
 from PyQt4 import QtGui, QtCore
 import pyqtgraph as pg
 import numpy as np
-import matplotlib.pyplot as plt
 from PyQt4.QtGui import QAction, QPushButton, QListWidget, QListWidgetItem, QLabel
 from PyQt4.QtGui import QFileDialog
 from PyQt4.QtGui import QIcon
@@ -202,14 +201,22 @@ class MainWindow(QtGui.QMainWindow):
         Remove selected items from listWidget from plot, listWidget
          and all_plot_items dictionary.
         """
-        for item in self.listWidget.selectedItems():
-            name = unicode(item.text())
+        for selected_item in self.listWidget.selectedItems():
+            name = unicode(selected_item.text())
             self.pw.removeItem(self.all_plot_items[name])
             self.all_plot_items.pop(name)
-            self.listWidget.takeItem(self.listWidget.row(item))
+            self.listWidget.takeItem(self.listWidget.row(selected_item))
 
     def export_selected_plots(self):
-        file = unicode(QFileDialog.getExistingDirectory(self, "Select Directory"))
+        """
+        Choose directory and save all selectes items as tables
+        """
+        export_directory_name = unicode(QFileDialog.getExistingDirectory(self, "Select Export Directory"))
+        if export_directory_name != '':
+            for selected_item in self.listWidget.selectedItems():
+                name = unicode(selected_item.text())
+                export_file_name = export_directory_name + "/" + name + ".data"
+                np.savetxt(export_file_name, np.transpose(self.all_plot_items[name].getData()))
 
     def calculate_flux_from_distance(self):
         pass
@@ -220,13 +227,19 @@ class MainWindow(QtGui.QMainWindow):
     def unred_selected_plots(self):
         pass
 
+    def calulate_red_shift(self):
+        pass
+
+    def calculate_continuum(self):
+        pass
+
+    def calculate_fwhm(self):
+        pass
+
     def __init__(self):
         """
         Инициализируем окно. Добавляем иконку.
         Создаем виджет для графики. Добавляем туда PlotWidget.
-        TODO: Создаем графическое окно из которого можно удалять и добавлять графики.
-        c1 = self.pw.plot(np.random.normal(size=100), pen=(255, 0, 0), name="Red curve")
-        self.pw.removeItem(c1)
         """
         QtGui.QMainWindow.__init__(self)
         self.setWindowIcon(QIcon("web.png"))
