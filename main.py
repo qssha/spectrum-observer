@@ -13,6 +13,8 @@ from astropy.io import fits
 from specutils.wcs import specwcs
 from specutils import Spectrum1D
 from scipy.interpolate import interp1d
+from scipy.signal import savgol_filter
+from PyAstronomy import pyasl
 import cmfgenplot  # Скрипт для парсера CMFGEN
 
 
@@ -221,18 +223,28 @@ class MainWindow(QtGui.QMainWindow):
                 np.savetxt(export_file_name, np.transpose(self.all_plot_items[name].getData()))
 
     def add_to_list_point_widget(self, event):
+        """
+        Add point when clicked on graphics scene with Control.
+        :param event: Mouse event
+        :return: 
+        """
         if event.modifiers() == QtCore.Qt.ControlModifier:
             x = np.array([self.mouse_point.x()])
             y = np.array([self.mouse_point.y()])
-            name = "x = %0.2f, y = %0.2e" % (self.mouse_point.x(), self.mouse_point.y())
-            current_point = self.pw.plot(x, y, pen=None, symbol='t', symbolPen=None, symbolSize=10, symbolBrush=pg.mkColor(1))
+            name = "x = %0.2f, y = %0.4e" % (self.mouse_point.x(), self.mouse_point.y())
+            current_point = self.pw.plot(x, y, pen=None, symbol='t', symbolPen=None, symbolSize=10, symbolBrush=pg.mkColor(5))
             self.all_point_items[name] = current_point
             item = QListWidgetItem('%s' % name)
             self.listPointWidget.addItem(item)
 
     def remove_selected_points(self):
+        """
+        Remove selected points from listPointWidget
+        :return: 
+        """
         for selected_item in self.listPointWidget.selectedItems():
             name = unicode(selected_item.text())
+
             self.pw.removeItem(self.all_point_items[name])
             self.all_point_items.pop(name)
             self.listPointWidget.takeItem(self.listPointWidget.row(selected_item))
@@ -244,6 +256,10 @@ class MainWindow(QtGui.QMainWindow):
         self.listPointWidget.clearSelection()
 
     def calculate_flux_for_selected_plots(self):
+        """
+        Rescale selected plots from distance in kpc
+        :return: 
+        """
         text, ok = QInputDialog.getText(self, 'Rescale fluxes from distance', 'Rescaling fluxes to 1 kpc.\n'
                                                                               'Enter distance to object(s) in kpc,'
                                                                               ' for example, 3 or 2.3 * 10** 3')
@@ -259,19 +275,93 @@ class MainWindow(QtGui.QMainWindow):
             self.name_error_event(exception.message)
 
     def smooth_selected_plots(self):
-        pass
+        """
+        Smooth selected plots
+        :return: 
+        """
+        text, ok = QInputDialog.getText(self, 'Data smoothing', 'Enter smoothing window for Savitzky–Golay filter:')
+        try:
+            if text != '' and ok is True:
+                window_length = eval(str(text))
+                for selected_item in self.listWidget.selectedItems():
+                    name = unicode(selected_item.text())
+                    data = np.transpose(self.all_plot_items[name].getData())
+                    data[:, 1] = savgol_filter(data[:, 1], window_length, 5)
+                    self.all_plot_items[name].setData(data)
+        except NameError and ValueError as exception:
+            self.name_error_event(exception.message)
 
     def unred_selected_plots(self):
-        pass
+        """
+        Unred selected plots from astrolib IDL
+        :return: 
+        """
+        text, ok = QInputDialog.getText(self, 'Deredden flux', 'Deredden a flux vector. Enter Av:')
+        try:
+            if text != '' and ok is True:
+                a_v = eval(str(text))
+                for selected_item in self.listWidget.selectedItems():
+                    name = unicode(selected_item.text())
+                    data = np.transpose(self.all_plot_items[name].getData())
+                    data[:, 1] = pyasl.unred(data[:,0], data[:,1], ebv=a_v/3.2)
+                    self.all_plot_items[name].setData(data)
+        except NameError as exception:
+            self.name_error_event(exception.message)
 
     def calculate_red_shift_for_selected_plots(self):
-        pass
+        """
+        Calculate red shift from z
+        :return: 
+        """
+        text, ok = QInputDialog.getText(self, 'Rescale wavelength from z', 'Enter z')
+        try:
+            if text != '' and ok is True:
+                z = eval(str(text))
+                for selected_item in self.listWidget.selectedItems():
+                    name = unicode(selected_item.text())
+                    data = np.transpose(self.all_plot_items[name].getData())
+                    data[:, 0] = data[:, 0] * (1 + z)
+                    self.all_plot_items[name].setData(data)
+        except NameError as exception:
+            self.name_error_event(exception.message)
 
     def calculate_continuum_for_selected_plots(self):
-        pass
+        """
+        Calculate continuum for selected plots from all points
+        :return: 
+        """
+        for selected_item in self.listWidget.selectedItems():
+            name = unicode(selected_item.text())
+            data = np.transpose(self.all_plot_items[name].getData())
+
+            point_data = []
+            for index in range(self.listPointWidget.count()):
+                point_name = unicode(self.listPointWidget.item(index).text())
+                point_data.append([self.all_point_items[point_name].getData()[0][0],
+                             self.all_point_items[point_name].getData()[1][0]])
+                self.pw.removeItem(self.all_point_items[point_name])
+
+            point_data = np.array(point_data)
+            f = interp1d(point_data[:, 0], point_data[:, 1])
+
+            data = data[:np.where(data[:, 0] < np.max(point_data[:, 0]))[0][-1], :]
+            data = data[np.where(data[:, 0] > np.min(point_data[:, 0]))[0][0]:, :]
+
+            data[:, 1] = data[:, 1] / f(data[:, 0])
+            self.all_plot_items[name].setData(data)
+            self.listPointWidget.clear()
+            self.pw.autoRange()
 
     def calculate_fwhm_for_intervals(self):
-        pass
+        """
+        Caclculate fwhm for lines between points
+        :return: 
+        """
+        import pyqtgraph.exporters
+        exporter = pg.exporters.MatplotlibExporter(self.pw)
+
+        # set export parameters if needed
+        exporter.export()
 
     def name_error_event(self,message):
         """
