@@ -87,10 +87,12 @@ class MainWindow(QtGui.QMainWindow):
                     line_label_position = 0.85
                 else:
                     line_label_position = 0.90
-                line = pg.InfiniteLine(pos=float(lines_data[i, 0]), label=str(lines_data[i, 1] + lines_data[i, 0]),
-                                       labelOpts={'position': line_label_position, 'color': pg.mkColor("w")})
+                line = pg.InfiniteLine(pos=float(lines_data[i, 0]), label=lines_data[i, 1],
+                                       labelOpts={'position': line_label_position, 'color': pg.mkColor("w")},
+                                       name=lines_data[i, 1])
                 line.setPen(style=QtCore.Qt.DotLine)
                 self.pw.addItem(line)
+                self.all_lines.append([float(lines_data[i, 0]), lines_data[i, 1]])
 
     def table_plot(self):
         """
@@ -128,6 +130,7 @@ class MainWindow(QtGui.QMainWindow):
         self.pw.clear()
         self.all_plot_items = {}
         self.all_point_items = {}
+        self.all_lines = []
         self.listWidget.clear()
         self.listPointWidget.clear()
 
@@ -357,11 +360,6 @@ class MainWindow(QtGui.QMainWindow):
         Caclculate fwhm for lines between points
         :return: 
         """
-        import pyqtgraph.exporters
-        exporter = pg.exporters.MatplotlibExporter(self.pw)
-
-        # set export parameters if needed
-        exporter.export()
 
     def name_error_event(self,message):
         """
@@ -396,6 +394,19 @@ class MainWindow(QtGui.QMainWindow):
         self.i = 0
         self.all_plot_items = {}
         self.all_point_items = {}
+        self.all_lines = []
+
+    def export_matplotlib(self):
+        import CustomExporter
+        '''
+        for item in self.pw.items:
+            print(item.getXPos())
+            print(item.name())
+        '''
+        exporter = CustomExporter.CustomMatplotlib(self.pw)
+
+        # set export parameters if needed
+        exporter.export(self.all_lines)
 
     def init_ui(self):
         """
@@ -436,7 +447,7 @@ class MainWindow(QtGui.QMainWindow):
         self.listPointWidget = QListWidget()
         self.listPointWidget.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
         self.listPointWidget.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
-        self.listPointWidget.setFixedHeight(175)
+        self.listPointWidget.setFixedHeight(150)
         self.listPointWidget.setFixedWidth(170)
 
         self.remove_points = QtGui.QPushButton('Remove point(s)', self)
@@ -476,6 +487,10 @@ class MainWindow(QtGui.QMainWindow):
         self.horizontal_fourth.addWidget(self.calculate_continuum)
         self.horizontal_fourth.addWidget(self.calculate_fwhm)
 
+        self.export_to_matplotlib = QtGui.QPushButton('Export to eps/pdf', self)
+        self.export_to_matplotlib.clicked.connect(self.export_matplotlib)
+        self.export_to_matplotlib.setFixedWidth(170)
+
         self.vertical_layout.addWidget(self.unselect)
         self.vertical_layout.addWidget(self.listWidget)
         self.vertical_layout.addLayout(self.horizontal_first)
@@ -485,6 +500,7 @@ class MainWindow(QtGui.QMainWindow):
         self.vertical_layout.addWidget(self.unselect_points)
         self.vertical_layout.addWidget(self.listPointWidget)
         self.vertical_layout.addWidget(self.remove_points)
+        self.vertical_layout.addWidget(self.export_to_matplotlib)
         self.vertical_layout.addStretch()
         self.vertical_layout.addWidget(self.label)
 
