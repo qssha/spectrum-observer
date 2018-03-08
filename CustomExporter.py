@@ -74,7 +74,7 @@ class CustomMatplotlib(MatplotlibExporter):
                     line_label1 = []
 
                     for line in loaded_lines:
-                        if np.min(x) < line[0] < np.max(x):
+                        if np.min(xr) < line[0] < np.max(xr):
                             line_wave.append(line[0])
                             line_label1.append(line[1])
 
