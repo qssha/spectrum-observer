@@ -39,7 +39,7 @@ class CustomMatplotlib(MatplotlibExporter):
             ax = fig.add_subplot(111, title=title)
             ax.clear()
             self.cleanAxes(ax)
-            # ax.grid(True)
+            ax.grid(True)
             for item in self.item.curves:
                 x, y = item.getData()
                 opts = item.opts

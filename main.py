@@ -9,11 +9,6 @@ from PyQt4.QtGui import QAction, QPushButton, QListWidget, QListWidgetItem, QLab
 from PyQt4.QtGui import QFileDialog
 from PyQt4.QtGui import QIcon
 from PyQt4.QtGui import QMessageBox
-from astropy.io import fits
-from specutils.wcs import specwcs
-from specutils import Spectrum1D
-from scipy.interpolate import interp1d
-from scipy.signal import savgol_filter
 from PyAstronomy import pyasl
 import cmfgenplot  # Скрипт для парсера CMFGEN
 
@@ -33,14 +28,7 @@ class MainWindow(QtGui.QMainWindow):
         try:
             fits_file = unicode(QFileDialog.getOpenFileName(self, 'Open FITS file'))
             if fits_file != '':
-                header = fits.getheader(fits_file)
-                dispersion_start = header['CRVAL1'] - (header['CRPIX1'] - 1) * header['CDELT1']
-                linear_wcs = specwcs.Spectrum1DPolynomialWCS(degree=1, c0=dispersion_start, c1=header['CDELT1'],
-                                                             unit='Angstrom')
-                flux = fits.getdata(fits_file)
-                spectrum = Spectrum1D(flux=flux, wcs=linear_wcs)
-                wave = np.array(spectrum.wavelength)
-                flux = np.array(spectrum.flux)
+                wave, flux = pyasl.read1dFitsSpec(fits_file)
                 current_plot = self.pw.plot(wave, flux, pen=pg.mkColor(self.i))
                 plot_name = fits_file.split("/")[-1]
                 self.all_plot_items[plot_name] = current_plot
@@ -105,8 +93,9 @@ class MainWindow(QtGui.QMainWindow):
             file_name = unicode(QFileDialog.getOpenFileName(self, 'Open two-column table data file'))
             if file_name != '':
                 data = np.loadtxt(file_name)
-                filtered_data = np.array([x for x in data if 2200 < x[0] < 8000])
-                current_plot = self.pw.plot(filtered_data[:, 0], filtered_data[:, 1], pen=pg.mkColor(self.i))
+                dt = max(data[1:, 0] - data[0:-1,  0])
+                binned_data, dt = pyasl.binningx0dt(data[:, 0], data[:, 1], x0=min(data[:, 0]), dt=dt)
+                current_plot = self.pw.plot(binned_data[:, 0], binned_data[:, 1], pen=pg.mkColor(self.i))
                 plot_name = file_name.split("/")[-1]
                 self.all_plot_items[plot_name] = current_plot
                 self.add_to_list_widget(plot_name)
@@ -150,19 +139,22 @@ class MainWindow(QtGui.QMainWindow):
 
                 x_limit_left = 3800
                 x_limit_right = 8000
+
                 cmfgen_modeldata = cmfgenplot.spectr_input(cmfgen_filename)
                 cmfgen_modeldata = cmfgen_modeldata[:np.where(cmfgen_modeldata[:, 0] < x_limit_right)[0][-1], :]
                 cmfgen_modeldata = cmfgen_modeldata[np.where(cmfgen_modeldata[:, 0] > x_limit_left)[0][0]:, :]
 
+                dt = max(cmfgen_modeldata[1:, 0] - cmfgen_modeldata[0:-1, 0])
+                cmfgen_binned_data, dt = pyasl.binningx0dt(cmfgen_modeldata[:, 0], cmfgen_modeldata[:, 1],
+                                                           x0=min(cmfgen_modeldata[:, 0]), dt=dt)
                 if reply == QMessageBox.Yes:
                     cmfgen_filename_cont = cmfgen_filename[0:-3] + 'cont'
                     cont = cmfgenplot.spectr_input(cmfgen_filename_cont)
-                    f = interp1d(cont[:, 0], cont[:, 1])
-                    interpolated_data = f(cmfgen_modeldata[:, 0])
-                    current_plot = self.pw.plot(cmfgen_modeldata[:, 0],
-                                 (cmfgen_modeldata[:, 1] / interpolated_data), pen=pg.mkColor(self.i))
+                    interpolated_data = pyasl.intep(cont[:, 0], cont[:, 1], cmfgen_binned_data[:, 0])
+                    current_plot = self.pw.plot(cmfgen_binned_data[:, 0],
+                                 (cmfgen_binned_data[:, 1] / interpolated_data), pen=pg.mkColor(self.i))
                 else:
-                    current_plot = self.pw.plot(cmfgen_modeldata[:, 0], cmfgen_modeldata[:, 1], pen=pg.mkColor(self.i))
+                    current_plot = self.pw.plot(cmfgen_binned_data[:, 0], cmfgen_binned_data[:, 1], pen=pg.mkColor(self.i))
                 plot_name = cmfgen_filename.split("/")[-3]
                 self.all_plot_items[plot_name] = current_plot
                 self.add_to_list_widget(plot_name)
@@ -282,14 +274,14 @@ class MainWindow(QtGui.QMainWindow):
         Smooth selected plots
         :return: 
         """
-        text, ok = QInputDialog.getText(self, 'Data smoothing', 'Enter smoothing window for Savitzky–Golay filter:')
+        text, ok = QInputDialog.getText(self, 'Data smoothing', 'Enter smoothing window:')
         try:
             if text != '' and ok is True:
                 window_length = eval(str(text))
                 for selected_item in self.listWidget.selectedItems():
                     name = unicode(selected_item.text())
                     data = np.transpose(self.all_plot_items[name].getData())
-                    data[:, 1] = savgol_filter(data[:, 1], window_length, 5)
+                    data[:, 1] = pyasl.smooth(data[:, 1], window_length)
                     self.all_plot_items[name].setData(data)
         except NameError and ValueError as exception:
             self.name_error_event(exception.message)
@@ -345,12 +337,12 @@ class MainWindow(QtGui.QMainWindow):
                 self.pw.removeItem(self.all_point_items[point_name])
 
             point_data = np.array(point_data)
-            f = interp1d(point_data[:, 0], point_data[:, 1])
-
             data = data[:np.where(data[:, 0] < np.max(point_data[:, 0]))[0][-1], :]
             data = data[np.where(data[:, 0] > np.min(point_data[:, 0]))[0][0]:, :]
 
-            data[:, 1] = data[:, 1] / f(data[:, 0])
+            interpolated_cont = pyasl.intep(point_data[:, 0], point_data[:, 1], data[:, 0])
+
+            data[:, 1] = data[:, 1] / interpolated_cont
             self.all_plot_items[name].setData(data)
             self.listPointWidget.clear()
             self.pw.autoRange()
