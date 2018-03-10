@@ -10,10 +10,10 @@ from PyQt4.QtGui import QFileDialog
 from PyQt4.QtGui import QIcon
 from PyQt4.QtGui import QMessageBox
 from PyAstronomy import pyasl
-import cmfgenplot  # Скрипт для парсера CMFGEN
+import CmfgenParse  # Скрипт для парсера CMFGEN
 
 
-class MainWindow(QtGui.QMainWindow):
+class SpecObserver(QtGui.QMainWindow):
     """Main window class of program for spectral plotting.
      Attributes:
          attr1 (list): sys.argv information.
@@ -140,7 +140,7 @@ class MainWindow(QtGui.QMainWindow):
                 x_limit_left = 3800
                 x_limit_right = 8000
 
-                cmfgen_modeldata = cmfgenplot.spectr_input(cmfgen_filename)
+                cmfgen_modeldata = CmfgenParse.spectr_input(cmfgen_filename)
                 cmfgen_modeldata = cmfgen_modeldata[:np.where(cmfgen_modeldata[:, 0] < x_limit_right)[0][-1], :]
                 cmfgen_modeldata = cmfgen_modeldata[np.where(cmfgen_modeldata[:, 0] > x_limit_left)[0][0]:, :]
 
@@ -149,7 +149,7 @@ class MainWindow(QtGui.QMainWindow):
                                                            x0=min(cmfgen_modeldata[:, 0]), dt=dt)
                 if reply == QMessageBox.Yes:
                     cmfgen_filename_cont = cmfgen_filename[0:-3] + 'cont'
-                    cont = cmfgenplot.spectr_input(cmfgen_filename_cont)
+                    cont = CmfgenParse.spectr_input(cmfgen_filename_cont)
                     interpolated_data = pyasl.intep(cont[:, 0], cont[:, 1], cmfgen_binned_data[:, 0])
                     current_plot = self.pw.plot(cmfgen_binned_data[:, 0],
                                  (cmfgen_binned_data[:, 1] / interpolated_data), pen=pg.mkColor(self.i))
@@ -527,6 +527,6 @@ class MainWindow(QtGui.QMainWindow):
 
 
 app = QtGui.QApplication(sys.argv)
-main = MainWindow()
+main = SpecObserver()
 main.show()
 sys.exit(app.exec_())
