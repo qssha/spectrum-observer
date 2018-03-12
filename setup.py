@@ -2,14 +2,15 @@ from cx_Freeze import setup, Executable
 
 # Dependencies are automatically detected, but it might need
 # fine tuning.
-buildOptions = dict(packages = ['scipy', 'PyAstronomy',  'CustomExporter', 'cmfgenplot', 'FileDialog'], excludes = ['PySide', 'PySide.QtGui', 'pandas', 'collections.sys', 'collections._weakref', 'traitlets'])
+buildOptions = dict(packages = ['scipy', 'PyAstronomy',  'CustomExporter', 'CmfgenParse', 'FileDialog', 'Tkinter'],
+                    excludes = ['collections.sys', 'collections._weakref', 'traitlets'])
 
 import sys
 base = 'Win32GUI' if sys.platform=='win32' else None
 
 
 executables = [
-    Executable('SpecObserver.py', base=base)
+    Executable('SpecObserver.py', base=base, icon='web.png')
 ]
 
 setup(name='',

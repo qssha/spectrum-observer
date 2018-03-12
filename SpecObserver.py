@@ -2,18 +2,21 @@
 # -*- coding: utf-8 -*-
 
 import sys
-from PyQt4 import QtGui, QtCore
-import pyqtgraph as pg
 import numpy as np
+from PyQt4.QtGui import QMainWindow, QApplication, QHBoxLayout, QAbstractItemView, QWidget, QVBoxLayout
 from PyQt4.QtGui import QAction, QPushButton, QListWidget, QListWidgetItem, QLabel, QInputDialog
 from PyQt4.QtGui import QFileDialog
 from PyQt4.QtGui import QIcon
 from PyQt4.QtGui import QMessageBox
+from PyQt4 import QtCore
 from PyAstronomy import pyasl
-import CmfgenParse  # Скрипт для парсера CMFGEN
+from pyqtgraph import GraphicsWindow, mkColor, InfiniteLine, SignalProxy
+
+import CmfgenParse
+import CustomExporter
 
 
-class SpecObserver(QtGui.QMainWindow):
+class SpecObserver(QMainWindow):
     """Main window class of program for spectral plotting.
      Attributes:
          attr1 (list): sys.argv information.
@@ -29,7 +32,7 @@ class SpecObserver(QtGui.QMainWindow):
             fits_file = unicode(QFileDialog.getOpenFileName(self, 'Open FITS file'))
             if fits_file != '':
                 wave, flux = pyasl.read1dFitsSpec(fits_file)
-                current_plot = self.pw.plot(wave, flux, pen=pg.mkColor(self.i))
+                current_plot = self.pw.plot(wave, flux, pen=mkColor(self.i))
                 plot_name = fits_file.split("/")[-1]
                 self.all_plot_items[plot_name] = current_plot
                 self.add_to_list_widget(plot_name)
@@ -50,10 +53,10 @@ class SpecObserver(QtGui.QMainWindow):
         Method asking user about exit from application
         :param event: Accept close event
         """
-        reply = QtGui.QMessageBox.question(self, 'Message',
-                                           "Are you sure to quit?", QtGui.QMessageBox.Yes |
-                                           QtGui.QMessageBox.No, QtGui.QMessageBox.No)
-        if reply == QtGui.QMessageBox.Yes:
+        reply = QMessageBox.question(self, 'Message',
+                                           "Are you sure to quit?", QMessageBox.Yes |
+                                           QMessageBox.No, QMessageBox.No)
+        if reply == QMessageBox.Yes:
             event.accept()
         else:
             event.ignore()
@@ -75,8 +78,8 @@ class SpecObserver(QtGui.QMainWindow):
                     line_label_position = 0.85
                 else:
                     line_label_position = 0.90
-                line = pg.InfiniteLine(pos=float(lines_data[i, 0]), label=lines_data[i, 1],
-                                       labelOpts={'position': line_label_position, 'color': pg.mkColor("w")},
+                line = InfiniteLine(pos=float(lines_data[i, 0]), label=lines_data[i, 1],
+                                       labelOpts={'position': line_label_position, 'color': mkColor("w")},
                                        name=lines_data[i, 1])
                 line.setPen(style=QtCore.Qt.DotLine)
                 self.pw.addItem(line)
@@ -95,7 +98,7 @@ class SpecObserver(QtGui.QMainWindow):
                 data = np.loadtxt(file_name)
                 dt = max(data[1:, 0] - data[0:-1,  0])
                 binned_data, dt = pyasl.binningx0dt(data[:, 0], data[:, 1], x0=min(data[:, 0]), dt=dt)
-                current_plot = self.pw.plot(binned_data[:, 0], binned_data[:, 1], pen=pg.mkColor(self.i))
+                current_plot = self.pw.plot(binned_data[:, 0], binned_data[:, 1], pen=mkColor(self.i))
                 plot_name = file_name.split("/")[-1]
                 self.all_plot_items[plot_name] = current_plot
                 self.add_to_list_widget(plot_name)
@@ -152,9 +155,9 @@ class SpecObserver(QtGui.QMainWindow):
                     cont = CmfgenParse.spectr_input(cmfgen_filename_cont)
                     interpolated_data = pyasl.intep(cont[:, 0], cont[:, 1], cmfgen_binned_data[:, 0])
                     current_plot = self.pw.plot(cmfgen_binned_data[:, 0],
-                                 (cmfgen_binned_data[:, 1] / interpolated_data), pen=pg.mkColor(self.i))
+                                 (cmfgen_binned_data[:, 1] / interpolated_data), pen=mkColor(self.i))
                 else:
-                    current_plot = self.pw.plot(cmfgen_binned_data[:, 0], cmfgen_binned_data[:, 1], pen=pg.mkColor(self.i))
+                    current_plot = self.pw.plot(cmfgen_binned_data[:, 0], cmfgen_binned_data[:, 1], pen=mkColor(self.i))
                 plot_name = cmfgen_filename.split("/")[-3]
                 self.all_plot_items[plot_name] = current_plot
                 self.add_to_list_widget(plot_name)
@@ -177,7 +180,7 @@ class SpecObserver(QtGui.QMainWindow):
         """
         item = QListWidgetItem('%s' % name)
         # print(self.all_plot_items[unicode(item.text())].getData())
-        item.setBackgroundColor(pg.mkColor(self.i))
+        item.setBackgroundColor(mkColor(self.i))
         self.listWidget.addItem(item)
 
     def list_widget_clear_selection(self):
@@ -227,7 +230,8 @@ class SpecObserver(QtGui.QMainWindow):
             x = np.array([self.mouse_point.x()])
             y = np.array([self.mouse_point.y()])
             name = "x = %0.2f, y = %0.4e" % (self.mouse_point.x(), self.mouse_point.y())
-            current_point = self.pw.plot(x, y, pen=None, symbol='t', symbolPen=None, symbolSize=10, symbolBrush=pg.mkColor(5))
+            current_point = self.pw.plot(x, y, pen=None, symbol='t', symbolPen=None, symbolSize=10,
+                                         symbolBrush=mkColor(5))
             self.all_point_items[name] = current_point
             item = QListWidgetItem('%s' % name)
             self.listPointWidget.addItem(item)
@@ -266,6 +270,7 @@ class SpecObserver(QtGui.QMainWindow):
                     data = np.transpose(self.all_plot_items[name].getData())
                     data[:, 1] = data[:, 1] * distance**2
                     self.all_plot_items[name].setData(data)
+                    self.pw.autoRange()
         except NameError as exception:
             self.name_error_event(exception.message)
 
@@ -281,7 +286,7 @@ class SpecObserver(QtGui.QMainWindow):
                 for selected_item in self.listWidget.selectedItems():
                     name = unicode(selected_item.text())
                     data = np.transpose(self.all_plot_items[name].getData())
-                    data[:, 1] = pyasl.smooth(data[:, 1], window_length)
+                    data[:, 1] = pyasl.smooth(data[:, 1], window_length, 'hamming')
                     self.all_plot_items[name].setData(data)
         except NameError and ValueError as exception:
             self.name_error_event(exception.message)
@@ -361,24 +366,36 @@ class SpecObserver(QtGui.QMainWindow):
         """
         QMessageBox.critical(self, "IOError", "Can't evaluate input string\n" + message)
 
+    def export_matplotlib(self):
+        exporter = CustomExporter.CustomMatplotlib(self.pw)
+        exporter.export(self.all_lines)
+
+    def export_as_fits_for_selected_plot(self):
+        pass
+
+    def change_selected_plot_name(self):
+        pass
+
+    def single_plot_warning_event(self):
+        pass
+
     def __init__(self):
         """
         Инициализируем окно. Добавляем иконку.
         Создаем виджет для графики. Добавляем туда PlotWidget.
         """
-        QtGui.QMainWindow.__init__(self)
+        QMainWindow.__init__(self)
         self.setWindowIcon(QIcon("web.png"))
         self.setWindowTitle("Spectrum observer")
 
-        self.cw = QtGui.QWidget()
+        self.cw = QWidget()
         self.setCentralWidget(self.cw)
-        self.l = QtGui.QHBoxLayout()
+        self.l = QHBoxLayout()
         self.cw.setLayout(self.l)
 
-        self.win = pg.GraphicsWindow()
+        self.win = GraphicsWindow()
         self.pw = self.win.addPlot()
         self.pw.showGrid(x=True, y=True)
-        #self.pw.disableAutoRange()
 
         self.init_ui()
         self.l.addWidget(self.win)
@@ -388,98 +405,86 @@ class SpecObserver(QtGui.QMainWindow):
         self.all_point_items = {}
         self.all_lines = []
 
-    def export_matplotlib(self):
-        import CustomExporter
-        '''
-        for item in self.pw.items:
-            print(item.getXPos())
-            print(item.name())
-        '''
-        exporter = CustomExporter.CustomMatplotlib(self.pw)
-
-        # set export parameters if needed
-        exporter.export(self.all_lines)
-
     def init_ui(self):
         """
         Buttons and widgets init
         """
-        self.vertical_layout = QtGui.QVBoxLayout()
+        self.vertical_layout = QVBoxLayout()
 
-        self.unselect = QtGui.QPushButton('Unselect all plots', self)
+        self.unselect = QPushButton('Unselect all plots', self)
         self.unselect.clicked.connect(self.list_widget_clear_selection)
         self.unselect.setFixedWidth(170)
 
-        self.remove = QtGui.QPushButton('Remove', self)
+        self.remove = QPushButton('Remove', self)
         self.remove.clicked.connect(self.remove_selected_plots)
         self.remove.setFixedWidth(85)
 
-        self.export = QtGui.QPushButton('Export', self)
+        self.export = QPushButton('Export', self)
         self.export.clicked.connect(self.export_selected_plots)
         self.export.setFixedWidth(85)
 
         self.listWidget = QListWidget()
-        self.listWidget.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
+        self.listWidget.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.listWidget.setFixedHeight(125)
         self.listWidget.setFixedWidth(170)
 
-        self.horizontal_first = QtGui.QHBoxLayout()
+        self.horizontal_first = QHBoxLayout()
         self.horizontal_first.addWidget(self.remove)
         self.horizontal_first.addWidget(self.export)
 
         self.label = QLabel()
-        self.proxy = pg.SignalProxy(self.pw.scene().sigMouseMoved, rateLimit=3, slot=self.mouse_moved)
+        self.proxy = SignalProxy(self.pw.scene().sigMouseMoved, rateLimit=3, slot=self.mouse_moved)
 
         self.pw.scene().sigMouseClicked.connect(self.add_to_list_point_widget)
 
-        self.unselect_points = QtGui.QPushButton('Unselect all points', self)
+        self.unselect_points = QPushButton('Unselect all points', self)
         self.unselect_points.clicked.connect(self.list_point_widget_clear_selection)
         self.unselect_points.setFixedWidth(170)
 
         self.listPointWidget = QListWidget()
         self.listPointWidget.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
-        self.listPointWidget.setSelectionMode(QtGui.QAbstractItemView.ExtendedSelection)
+        self.listPointWidget.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.listPointWidget.setFixedHeight(150)
         self.listPointWidget.setFixedWidth(170)
 
-        self.remove_points = QtGui.QPushButton('Remove point(s)', self)
+        self.remove_points = QPushButton('Remove point(s)', self)
         self.remove_points.clicked.connect(self.remove_selected_points)
         self.remove_points.setFixedWidth(170)
 
-        self.horizontal_second = QtGui.QHBoxLayout()
-        self.calculate_flux = QtGui.QPushButton('Distance', self)
+        self.horizontal_second = QHBoxLayout()
+        self.calculate_flux = QPushButton('Distance', self)
         self.calculate_flux.clicked.connect(self.calculate_flux_for_selected_plots)
         self.calculate_flux.setFixedWidth(85)
-        self.calculate_redshift = QtGui.QPushButton('Red shift', self)
+        self.calculate_redshift = QPushButton('Red shift', self)
         self.calculate_redshift.clicked.connect(self.calculate_red_shift_for_selected_plots)
         self.calculate_redshift.setFixedWidth(85)
 
         self.horizontal_second.addWidget(self.calculate_flux)
         self.horizontal_second.addWidget(self.calculate_redshift)
 
-        self.horizontal_third = QtGui.QHBoxLayout()
-        self.calculate_smooth = QtGui.QPushButton('Smooth', self)
+        self.horizontal_third = QHBoxLayout()
+        self.calculate_smooth = QPushButton('Smooth', self)
         self.calculate_smooth.clicked.connect(self.smooth_selected_plots)
         self.calculate_smooth.setFixedWidth(85)
-        self.calculate_unred = QtGui.QPushButton('Unred', self)
+        self.calculate_unred = QPushButton('Unred', self)
         self.calculate_unred.clicked.connect(self.unred_selected_plots)
         self.calculate_unred.setFixedWidth(85)
 
         self.horizontal_third.addWidget(self.calculate_smooth)
         self.horizontal_third.addWidget(self.calculate_unred)
 
-        self.horizontal_fourth = QtGui.QHBoxLayout()
-        self.calculate_continuum = QtGui.QPushButton('Continuum', self)
+        self.horizontal_fourth = QHBoxLayout()
+        self.calculate_continuum = QPushButton('Continuum', self)
         self.calculate_continuum.clicked.connect(self.calculate_continuum_for_selected_plots)
         self.calculate_continuum.setFixedWidth(85)
-        self.calculate_fwhm = QtGui.QPushButton('FWHM', self)
+        self.calculate_fwhm = QPushButton('FWHM', self)
         self.calculate_fwhm.clicked.connect(self.calculate_fwhm_for_intervals)
         self.calculate_fwhm.setFixedWidth(85)
 
         self.horizontal_fourth.addWidget(self.calculate_continuum)
         self.horizontal_fourth.addWidget(self.calculate_fwhm)
 
-        self.export_to_matplotlib = QtGui.QPushButton('Export to eps/pdf', self)
+        self.export_to_matplotlib = QPushButton('Export to eps/pdf', self)
         self.export_to_matplotlib.clicked.connect(self.export_matplotlib)
         self.export_to_matplotlib.setFixedWidth(170)
 
@@ -526,7 +531,7 @@ class SpecObserver(QtGui.QMainWindow):
         menu_bar.addAction(clear_plot)
 
 
-app = QtGui.QApplication(sys.argv)
+app = QApplication(sys.argv)
 main = SpecObserver()
 main.show()
 sys.exit(app.exec_())
