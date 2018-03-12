@@ -35,6 +35,7 @@ class SpecObserver(QMainWindow):
                 current_plot = self.pw.plot(wave, flux, pen=mkColor(self.i))
                 plot_name = fits_file.split("/")[-1]
                 self.all_plot_items[plot_name] = current_plot
+                self.all_fits_paths[plot_name] = fits_file
                 self.add_to_list_widget(plot_name)
                 self.i += 2
         except IOError as exception:
@@ -122,6 +123,7 @@ class SpecObserver(QMainWindow):
         self.pw.clear()
         self.all_plot_items = {}
         self.all_point_items = {}
+        self.all_fits_paths = {}
         self.all_lines = []
         self.listWidget.clear()
         self.listPointWidget.clear()
@@ -213,12 +215,15 @@ class SpecObserver(QMainWindow):
         """
         Choose directory and save all selectes items as tables
         """
-        export_directory_name = unicode(QFileDialog.getExistingDirectory(self, "Select Export Directory"))
-        if export_directory_name != '':
-            for selected_item in self.listWidget.selectedItems():
-                name = unicode(selected_item.text())
-                export_file_name = export_directory_name + "/" + name + ".data"
-                np.savetxt(export_file_name, np.transpose(self.all_plot_items[name].getData()))
+        if len(self.listWidget.selectedItems()) != 1:
+            self.single_plot_warning_event()
+            return
+
+        export_name = unicode(QFileDialog.getSaveFileName(self, "Select Export Directory and Name"))
+        if export_name != '':
+            name = unicode(self.listWidget.selectedItems()[0].text())
+            export_name += ".data"
+            np.savetxt(export_name, np.transpose(self.all_plot_items[name].getData()))
 
     def add_to_list_point_widget(self, event):
         """
@@ -279,14 +284,16 @@ class SpecObserver(QMainWindow):
         Smooth selected plots
         :return: 
         """
-        text, ok = QInputDialog.getText(self, 'Data smoothing', 'Enter smoothing window:')
+        text, ok = QInputDialog.getText(self, 'Data smoothing', 'Enter smoothing window, Angstrom:')
         try:
             if text != '' and ok is True:
                 window_length = eval(str(text))
                 for selected_item in self.listWidget.selectedItems():
                     name = unicode(selected_item.text())
                     data = np.transpose(self.all_plot_items[name].getData())
-                    data[:, 1] = pyasl.smooth(data[:, 1], window_length, 'hamming')
+                    window_length_cell = int(window_length / max(data[1:, 0] - data[0:-1, 0]))
+                    if window_length_cell % 2 == 0: window_length_cell += 1
+                    data[:, 1] = pyasl.smooth(data[:, 1], window_length_cell, 'hamming')
                     self.all_plot_items[name].setData(data)
         except NameError and ValueError as exception:
             self.name_error_event(exception.message)
@@ -367,17 +374,53 @@ class SpecObserver(QMainWindow):
         QMessageBox.critical(self, "IOError", "Can't evaluate input string\n" + message)
 
     def export_matplotlib(self):
+        """
+        Export with lines to Matplotlib
+        :return: 
+        """
         exporter = CustomExporter.CustomMatplotlib(self.pw)
         exporter.export(self.all_lines)
 
     def export_as_fits_for_selected_plot(self):
-        pass
+        """
+        Export spectrum as FITS
+        """
+        if len(self.listWidget.selectedItems()) != 1:
+            self.single_plot_warning_event()
+            return
+
+        export_name = unicode(QFileDialog.getSaveFileName(self, "Select Export Directory and Name"))
+        if export_name != '':
+            name = unicode(self.listWidget.selectedItems()[0].text())
+            data = np.transpose(self.all_plot_items[name].getData())
+            if name in self.all_fits_paths:
+                pyasl.write1dFitsSpec(export_name + ".fits", data[:, 1], wvl=data[:, 0],
+                                      refFileName=self.all_fits_paths[name], clobber=True)
+            else:
+                pyasl.write1dFitsSpec(export_name + ".fits", data[:, 1], wvl=data[:, 0], clobber=True)
 
     def change_selected_plot_name(self):
-        pass
+        """
+        Change name of selected plot
+        :return: 
+        """
+        if len(self.listWidget.selectedItems()) != 1:
+            self.single_plot_warning_event()
+            return
+
+        text, ok = QInputDialog.getText(self, 'Plot rename', 'Choose new name for plot')
+        if text != '' and ok is True:
+            name = unicode(self.listWidget.selectedItems()[0].text())
+            self.all_plot_items[unicode(text)] = self.all_plot_items[name]
+            self.all_plot_items.pop(name)
+            self.listWidget.selectedItems()[0].setText(unicode(text));
+
 
     def single_plot_warning_event(self):
-        pass
+        """
+        Method creates window with warning message, when more than single plot chosen
+        """
+        QMessageBox.warning(self, "Warning", "Please choose one plot\n")
 
     def __init__(self):
         """
@@ -404,6 +447,7 @@ class SpecObserver(QMainWindow):
         self.all_plot_items = {}
         self.all_point_items = {}
         self.all_lines = []
+        self.all_fits_paths = {}
 
     def init_ui(self):
         """
@@ -415,13 +459,13 @@ class SpecObserver(QMainWindow):
         self.unselect.clicked.connect(self.list_widget_clear_selection)
         self.unselect.setFixedWidth(170)
 
+        self.change_name = QPushButton('Rename', self)
+        self.change_name.clicked.connect(self.change_selected_plot_name)
+        self.change_name.setFixedWidth(85)
+
         self.remove = QPushButton('Remove', self)
         self.remove.clicked.connect(self.remove_selected_plots)
         self.remove.setFixedWidth(85)
-
-        self.export = QPushButton('Export', self)
-        self.export.clicked.connect(self.export_selected_plots)
-        self.export.setFixedWidth(85)
 
         self.listWidget = QListWidget()
         self.listWidget.setSelectionMode(QAbstractItemView.ExtendedSelection)
@@ -430,7 +474,7 @@ class SpecObserver(QMainWindow):
 
         self.horizontal_first = QHBoxLayout()
         self.horizontal_first.addWidget(self.remove)
-        self.horizontal_first.addWidget(self.export)
+        self.horizontal_first.addWidget(self.change_name)
 
         self.label = QLabel()
         self.proxy = SignalProxy(self.pw.scene().sigMouseMoved, rateLimit=3, slot=self.mouse_moved)
@@ -488,9 +532,20 @@ class SpecObserver(QMainWindow):
         self.export_to_matplotlib.clicked.connect(self.export_matplotlib)
         self.export_to_matplotlib.setFixedWidth(170)
 
+        self.horizontal_fifth = QHBoxLayout()
+        self.fits_export = QPushButton('Export FITS', self)
+        self.fits_export.clicked.connect(self.export_as_fits_for_selected_plot)
+        self.fits_export.setFixedWidth(85)
+        self.export = QPushButton('Export', self)
+        self.export.clicked.connect(self.export_selected_plots)
+        self.export.setFixedWidth(85)
+        self.horizontal_fifth.addWidget(self.fits_export)
+        self.horizontal_fifth.addWidget(self.export)
+
         self.vertical_layout.addWidget(self.unselect)
         self.vertical_layout.addWidget(self.listWidget)
         self.vertical_layout.addLayout(self.horizontal_first)
+        self.vertical_layout.addLayout(self.horizontal_fifth)
         self.vertical_layout.addLayout(self.horizontal_second)
         self.vertical_layout.addLayout(self.horizontal_third)
         self.vertical_layout.addLayout(self.horizontal_fourth)
