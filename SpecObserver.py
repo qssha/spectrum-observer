@@ -320,14 +320,15 @@ class SpecObserver(QMainWindow):
         Calculate red shift from z
         :return: 
         """
-        text, ok = QInputDialog.getText(self, 'Rescale wavelength from z', 'Enter z')
+        text, ok = QInputDialog.getText(self, 'Rescale wavelength from velocity', 'Enter velocity')
         try:
             if text != '' and ok is True:
-                z = eval(str(text))
+                vel = eval(str(text))
                 for selected_item in self.listWidget.selectedItems():
                     name = unicode(selected_item.text())
                     data = np.transpose(self.all_plot_items[name].getData())
-                    data[:, 0] = data[:, 0] * (1 + z)
+                    flux, wave = pyasl.dopplerShift(data[:, 0], data[:, 1], vel, edgeHandling="firstlast")
+                    data[:, 1] = flux
                     self.all_plot_items[name].setData(data)
         except NameError as exception:
             self.name_error_event(exception.message)
@@ -414,7 +415,6 @@ class SpecObserver(QMainWindow):
             self.all_plot_items[unicode(text)] = self.all_plot_items[name]
             self.all_plot_items.pop(name)
             self.listWidget.selectedItems()[0].setText(unicode(text));
-
 
     def single_plot_warning_event(self):
         """
