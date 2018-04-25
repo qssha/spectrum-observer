@@ -5,7 +5,7 @@ def spectr_input(file_name):
     """
     Parse multicolumn fortran data file from CMFGEN
     :param file_name: CMFGEN model filename 
-    :return: np.array(wave, flux)
+    :return: np.array(wave, f   lux)
     """
     input_file = open(file_name,'r')
     freq_flux_list = []

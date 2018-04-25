@@ -10,7 +10,8 @@ from PyQt4.QtGui import QIcon
 from PyQt4.QtGui import QMessageBox
 from PyQt4 import QtCore
 from PyAstronomy import pyasl
-from pyqtgraph import GraphicsWindow, mkColor, InfiniteLine, SignalProxy
+from pyqtgraph import GraphicsWindow, mkColor, InfiniteLine, SignalProxy, setConfigOption
+from scipy.optimize import curve_fit
 
 import CmfgenParse
 import CustomExporter
@@ -21,6 +22,7 @@ class SpecObserver(QMainWindow):
      Attributes:
          attr1 (list): sys.argv information.
     """
+
     def fits_plot(self):
         """
         Method for plotting spectrum from 1D FITS file.
@@ -50,13 +52,9 @@ class SpecObserver(QMainWindow):
         QMessageBox.critical(self, "IOError", "Can't read FITS file\n" + message)
 
     def closeEvent(self, event):
-        """
-        Method asking user about exit from application
-        :param event: Accept close event
-        """
         reply = QMessageBox.question(self, 'Message',
-                                           "Are you sure to quit?", QMessageBox.Yes |
-                                           QMessageBox.No, QMessageBox.No)
+                                     "Are you sure to quit?", QMessageBox.Yes |
+                                     QMessageBox.No, QMessageBox.No)
         if reply == QMessageBox.Yes:
             event.accept()
         else:
@@ -80,11 +78,15 @@ class SpecObserver(QMainWindow):
                 else:
                     line_label_position = 0.90
                 line = InfiniteLine(pos=float(lines_data[i, 0]), label=lines_data[i, 1],
-                                       labelOpts={'position': line_label_position, 'color': mkColor("w")},
-                                       name=lines_data[i, 1])
+                                    labelOpts={'position': line_label_position, 'color': mkColor("w")},
+                                    name=lines_data[i, 1])
                 line.setPen(style=QtCore.Qt.DotLine)
                 self.pw.addItem(line)
                 self.all_lines.append([float(lines_data[i, 0]), lines_data[i, 1]])
+        """
+        Method asking user about exit from application
+        :param event: Accept close event
+        """
 
     def table_plot(self):
         """
@@ -97,7 +99,7 @@ class SpecObserver(QMainWindow):
             file_name = unicode(QFileDialog.getOpenFileName(self, 'Open two-column table data file'))
             if file_name != '':
                 data = np.loadtxt(file_name)
-                dt = max(data[1:, 0] - data[0:-1,  0])
+                dt = max(data[1:, 0] - data[0:-1, 0])
                 binned_data, dt = pyasl.binningx0dt(data[:, 0], data[:, 1], x0=min(data[:, 0]), dt=dt)
                 current_plot = self.pw.plot(binned_data[:, 0], binned_data[:, 1], pen=mkColor(self.i))
                 plot_name = file_name.split("/")[-1]
@@ -136,11 +138,12 @@ class SpecObserver(QMainWindow):
         Call add_to_list_widget with plot item name.
         """
         try:
-            cmfgen_filename = unicode(QFileDialog.getOpenFileName(self ,'Open CMFGEN model file'))
+            cmfgen_filename = unicode(QFileDialog.getOpenFileName(self, 'Open CMFGEN model file'))
 
             if cmfgen_filename != '':
-                reply = QMessageBox.question(self, 'Message', "Do you want to plot normalized spectrum from *cont file?",
-                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+                reply = QMessageBox.question(self, 'Message',
+                                             "Do you want to plot normalized spectrum from *cont file?",
+                                             QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
 
                 x_limit_left = 3800
                 x_limit_right = 8000
@@ -152,14 +155,16 @@ class SpecObserver(QMainWindow):
                 dt = max(cmfgen_modeldata[1:, 0] - cmfgen_modeldata[0:-1, 0])
                 cmfgen_binned_data, dt = pyasl.binningx0dt(cmfgen_modeldata[:, 0], cmfgen_modeldata[:, 1],
                                                            x0=min(cmfgen_modeldata[:, 0]), dt=dt)
+                cmfgen_smoothed, fwhm = pyasl.instrBroadGaussFast(cmfgen_binned_data[:, 0], cmfgen_binned_data[:, 1],
+                                                                  1900, edgeHandling="firstlast", fullout=True)
                 if reply == QMessageBox.Yes:
                     cmfgen_filename_cont = cmfgen_filename[0:-3] + 'cont'
                     cont = CmfgenParse.spectr_input(cmfgen_filename_cont)
                     interpolated_data = pyasl.intep(cont[:, 0], cont[:, 1], cmfgen_binned_data[:, 0])
                     current_plot = self.pw.plot(cmfgen_binned_data[:, 0],
-                                 (cmfgen_binned_data[:, 1] / interpolated_data), pen=mkColor(self.i))
+                                                (cmfgen_smoothed / interpolated_data), pen=mkColor(self.i))
                 else:
-                    current_plot = self.pw.plot(cmfgen_binned_data[:, 0], cmfgen_binned_data[:, 1], pen=mkColor(self.i))
+                    current_plot = self.pw.plot(cmfgen_binned_data[:, 0], cmfgen_smoothed, pen=mkColor(self.i))
                 plot_name = cmfgen_filename.split("/")[-3]
                 self.all_plot_items[plot_name] = current_plot
                 self.add_to_list_widget(plot_name)
@@ -167,7 +172,7 @@ class SpecObserver(QMainWindow):
         except IOError as exception:
             self.cmfgen_error_event(exception.message)
 
-    def cmfgen_error_event(self,message):
+    def cmfgen_error_event(self, message):
         """
         Method creates window with error message, 
         when cmfgen_plot raise IOError.
@@ -273,7 +278,7 @@ class SpecObserver(QMainWindow):
                 for selected_item in self.listWidget.selectedItems():
                     name = unicode(selected_item.text())
                     data = np.transpose(self.all_plot_items[name].getData())
-                    data[:, 1] = data[:, 1] * distance**2
+                    data[:, 1] = data[:, 1] * distance ** 2
                     self.all_plot_items[name].setData(data)
                     self.pw.autoRange()
         except NameError as exception:
@@ -310,7 +315,7 @@ class SpecObserver(QMainWindow):
                 for selected_item in self.listWidget.selectedItems():
                     name = unicode(selected_item.text())
                     data = np.transpose(self.all_plot_items[name].getData())
-                    data[:, 1] = pyasl.unred(data[:,0], data[:,1], ebv=a_v/3.2)
+                    data[:, 1] = pyasl.unred(data[:, 0], data[:, 1], ebv=a_v / 3.2)
                     self.all_plot_items[name].setData(data)
         except NameError as exception:
             self.name_error_event(exception.message)
@@ -346,7 +351,7 @@ class SpecObserver(QMainWindow):
             for index in range(self.listPointWidget.count()):
                 point_name = unicode(self.listPointWidget.item(index).text())
                 point_data.append([self.all_point_items[point_name].getData()[0][0],
-                             self.all_point_items[point_name].getData()[1][0]])
+                                   self.all_point_items[point_name].getData()[1][0]])
                 self.pw.removeItem(self.all_point_items[point_name])
 
             point_data = np.array(point_data)
@@ -365,8 +370,35 @@ class SpecObserver(QMainWindow):
         Caclculate fwhm for lines between points
         :return: 
         """
+        point_data = []
+        for index in range(self.listPointWidget.count()):
+            point_name = unicode(self.listPointWidget.item(index).text())
+            point_data.append([self.all_point_items[point_name].getData()[0][0],
+                               self.all_point_items[point_name].getData()[1][0]])
+            self.pw.removeItem(self.all_point_items[point_name])
 
-    def name_error_event(self,message):
+        self.listPointWidget.clear()
+
+        for point in point_data:
+            top_peak = point[0]
+            for selected_item in self.listWidget.selectedItems():
+                    name = unicode(selected_item.text())
+                    data = np.transpose(self.all_plot_items[name].getData())
+                    data = data[:np.where(data[:, 0] < point[0] + 50)[0][-1], :]
+                    data = data[np.where(data[:, 0] > point[0] - 50)[0][0]:, :]
+
+                    x = data[:, 0]
+                    y = data[:, 1]
+                    popt, pcov = curve_fit(lambda x, A, sig, lin, off: SpecObserver.func(x, A, top_peak, sig, lin, off), x, y)
+                    y_fit = SpecObserver.func(x, popt[0], top_peak, popt[1], popt[2], popt[3])
+                    self.pw.plot(x, y_fit, pen=mkColor(self.i))
+                    self.i += 2
+
+    @staticmethod
+    def func(x, A, mu, sig, lin, off):
+        return (A / (np.sqrt(2 * np.pi * sig))) * np.exp(-(x - mu) ** 2 / (2 * sig ** 2)) + x * lin + off
+
+    def name_error_event(self, message):
         """
         Method creates window with error message, 
         when program can't evaluate input string
@@ -430,6 +462,8 @@ class SpecObserver(QMainWindow):
         QMainWindow.__init__(self)
         self.setWindowIcon(QIcon("web.png"))
         self.setWindowTitle("Spectrum observer")
+        setConfigOption('background', 'w')
+        setConfigOption('foreground', 'k')
 
         self.cw = QWidget()
         self.setCentralWidget(self.cw)
