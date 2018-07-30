@@ -1,0 +1,11 @@
+macro 1
+Go "$1"
+.
+tabset -1 "" 5 9 *4 76 77 "" 84 92 *8
+set keys "-el+i-I+s-af+tTS-z"
+set indentcol 17
+status
+P0,-1,0,-2,1,0
+f68,0,21,13, wra751.dat
+C0
+.
