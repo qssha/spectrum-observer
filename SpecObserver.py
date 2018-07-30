@@ -12,6 +12,7 @@ from PyQt4 import QtCore
 from PyAstronomy import pyasl
 from pyqtgraph import GraphicsWindow, mkColor, InfiniteLine, SignalProxy, setConfigOption
 from scipy.optimize import curve_fit
+import pyqtgraph as pg
 
 import CmfgenParse
 import CustomExporter
@@ -83,10 +84,15 @@ class SpecObserver(QMainWindow):
                 line.setPen(style=QtCore.Qt.DotLine)
                 self.pw.addItem(line)
                 self.all_lines.append([float(lines_data[i, 0]), lines_data[i, 1]])
+                self.line_items.append(line)
         """
         Method asking user about exit from application
         :param event: Accept close event
         """
+
+    def remove_lines(self):
+        for line in self.line_items:
+            self.pw.removeItem(line)
 
     def table_plot(self):
         """
@@ -102,6 +108,25 @@ class SpecObserver(QMainWindow):
                 dt = max(data[1:, 0] - data[0:-1, 0])
                 binned_data, dt = pyasl.binningx0dt(data[:, 0], data[:, 1], x0=min(data[:, 0]), dt=dt)
                 current_plot = self.pw.plot(binned_data[:, 0], binned_data[:, 1], pen=mkColor(self.i))
+                plot_name = file_name.split("/")[-1]
+                self.all_plot_items[plot_name] = current_plot
+                self.add_to_list_widget(plot_name)
+                self.i += 2
+        except IOError as exception:
+            self.table_error_event(exception.message)
+
+    def simple_table_plot(self):
+        """
+        Plot data from simple table.
+        If plotting completed successfully, method will change text color in main window,
+        else table_plot will call table_error_event for displaying IOError.
+        Call add_to_list_widget with plot item name.
+        """
+        try:
+            file_name = unicode(QFileDialog.getOpenFileName(self, 'Open two-column table data file'))
+            if file_name != '':
+                data = np.loadtxt(file_name)
+                current_plot = self.pw.plot(data[:, 0], data[:, 1], pen=mkColor(self.i))
                 plot_name = file_name.split("/")[-1]
                 self.all_plot_items[plot_name] = current_plot
                 self.add_to_list_widget(plot_name)
@@ -127,6 +152,7 @@ class SpecObserver(QMainWindow):
         self.all_point_items = {}
         self.all_fits_paths = {}
         self.all_lines = []
+        self.line_items = []
         self.listWidget.clear()
         self.listPointWidget.clear()
 
@@ -145,7 +171,7 @@ class SpecObserver(QMainWindow):
                                              "Do you want to plot normalized spectrum from *cont file?",
                                              QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
 
-                x_limit_left = 3800
+                x_limit_left = 1000
                 x_limit_right = 8000
 
                 cmfgen_modeldata = CmfgenParse.spectr_input(cmfgen_filename)
@@ -157,6 +183,7 @@ class SpecObserver(QMainWindow):
                                                            x0=min(cmfgen_modeldata[:, 0]), dt=dt)
                 cmfgen_smoothed, fwhm = pyasl.instrBroadGaussFast(cmfgen_binned_data[:, 0], cmfgen_binned_data[:, 1],
                                                                   1900, edgeHandling="firstlast", fullout=True)
+                print fwhm
                 if reply == QMessageBox.Yes:
                     cmfgen_filename_cont = cmfgen_filename[0:-3] + 'cont'
                     cont = CmfgenParse.spectr_input(cmfgen_filename_cont)
@@ -240,7 +267,7 @@ class SpecObserver(QMainWindow):
             x = np.array([self.mouse_point.x()])
             y = np.array([self.mouse_point.y()])
             name = "x = %0.2f, y = %0.4e" % (self.mouse_point.x(), self.mouse_point.y())
-            current_point = self.pw.plot(x, y, pen=None, symbol='t', symbolPen=None, symbolSize=10,
+            current_point = self.pw.plot(x, y, pen=None, symbol='x', symbolPen=None, symbolSize=15,
                                          symbolBrush=mkColor(5))
             self.all_point_items[name] = current_point
             item = QListWidgetItem('%s' % name)
@@ -338,6 +365,25 @@ class SpecObserver(QMainWindow):
         except NameError as exception:
             self.name_error_event(exception.message)
 
+
+    def calculate_red_shift_by_z(self):
+        """
+        Calculate red shift from z
+        :return:
+        """
+        text, ok = QInputDialog.getText(self, 'Rescale wavelength from z', 'Enter z')
+        try:
+            if text != '' and ok is True:
+                z = eval(str(text))
+                for selected_item in self.listWidget.selectedItems():
+                    name = unicode(selected_item.text())
+                    data = np.transpose(self.all_plot_items[name].getData())
+                    data[:, 0] = data[:, 0] * (1 + z)
+                    self.all_plot_items[name].setData(data)
+        except NameError as exception:
+            self.name_error_event(exception.message)
+
+
     def calculate_continuum_for_selected_plots(self):
         """
         Calculate continuum for selected plots from all points
@@ -355,6 +401,8 @@ class SpecObserver(QMainWindow):
                 self.pw.removeItem(self.all_point_items[point_name])
 
             point_data = np.array(point_data)
+            point_data.sort(axis=0)
+
             data = data[:np.where(data[:, 0] < np.max(point_data[:, 0]))[0][-1], :]
             data = data[np.where(data[:, 0] > np.min(point_data[:, 0]))[0][0]:, :]
 
@@ -384,19 +432,33 @@ class SpecObserver(QMainWindow):
             for selected_item in self.listWidget.selectedItems():
                     name = unicode(selected_item.text())
                     data = np.transpose(self.all_plot_items[name].getData())
-                    data = data[:np.where(data[:, 0] < point[0] + 50)[0][-1], :]
-                    data = data[np.where(data[:, 0] > point[0] - 50)[0][0]:, :]
+                    data = data[:np.where(data[:, 0] < point[0] + 100)[0][-1], :]
+                    data = data[np.where(data[:, 0] > point[0] - 100)[0][0]:, :]
 
                     x = data[:, 0]
                     y = data[:, 1]
-                    popt, pcov = curve_fit(lambda x, A, sig, lin, off: SpecObserver.func(x, A, top_peak, sig, lin, off), x, y)
-                    y_fit = SpecObserver.func(x, popt[0], top_peak, popt[1], popt[2], popt[3])
+
+                    popt, pcov = curve_fit(lambda x, A, sig, lin, off: SpecObserver.func_gauss(x, A, top_peak, sig, lin, off),
+                                           x, y)
+                    y_fit = SpecObserver.func_gauss(x, popt[0], top_peak, popt[1], popt[2], popt[3])
                     self.pw.plot(x, y_fit, pen=mkColor(self.i))
                     self.i += 2
 
+                    print popt[1] * 2.355
+
     @staticmethod
-    def func(x, A, mu, sig, lin, off):
-        return (A / (np.sqrt(2 * np.pi * sig))) * np.exp(-(x - mu) ** 2 / (2 * sig ** 2)) + x * lin + off
+    def func_gauss(x, A, mu, sig, lin, off):
+        """
+        Gaussian function for approximation lines
+        :param x:
+        :param A:
+        :param mu:
+        :param sig:
+        :param lin:
+        :param off:
+        :return:
+        """
+        return A * np.exp(-(x - mu) ** 2 / (2 * sig ** 2)) + x * lin + off
 
     def name_error_event(self, message):
         """
@@ -454,6 +516,70 @@ class SpecObserver(QMainWindow):
         """
         QMessageBox.warning(self, "Warning", "Please choose one plot\n")
 
+    @staticmethod
+    def black_body(temp):
+        lam = np.arange(1000.0 * 1e-10, 20000. * 1e-10, 20e-10)
+        return lam, pyasl.planck(temp, lam=lam) * 1e-7 * 1e-18
+
+    def add_black_body_model(self):
+        """
+        Add black-body model on plot
+        :return:
+        """
+        text, ok = QInputDialog.getText(self, 'Black body model', 'Enter temp, K:')
+        try:
+            if text != '' and ok is True:
+                temp = eval(str(text))
+                wave, flux = SpecObserver.black_body(temp)
+                current_plot = self.pw.plot(wave * 1e10, flux, pen=mkColor(self.i))
+                plot_name = "Black body " + str(temp) + " K"
+                self.all_plot_items[plot_name] = current_plot
+                self.add_to_list_widget(plot_name)
+                self.i += 2
+        except NameError and ValueError as exception:
+            self.name_error_event(exception.message)
+
+    def sum_plots(self):
+        """
+        TEST
+        :return:
+        """
+        name = unicode(self.listWidget.selectedItems()[0].text())
+        data = np.transpose(self.all_plot_items[name].getData())
+
+        name_second = unicode(self.listWidget.selectedItems()[1].text())
+        data_second = np.transpose(self.all_plot_items[name_second].getData())
+
+        data = data[:np.where(data[:, 0] < np.max(data_second[:, 0]))[0][-1], :]
+        data = data[np.where(data[:, 0] > np.min(data_second[:, 0]))[0][0]:, :]
+
+        interpolated_cont = pyasl.intep(data_second[:, 0], data_second[:, 1], data[:, 0])
+        data[:, 1] = data[:, 1] / interpolated_cont
+        self.all_plot_items[name].setData(data)
+
+        selected_item = self.listWidget.selectedItems()[1]
+        name = unicode(selected_item.text())
+        self.pw.removeItem(self.all_plot_items[name])
+        self.all_plot_items.pop(name)
+        self.listWidget.takeItem(self.listWidget.row(selected_item))
+
+        self.pw.autoRange()
+        """
+        for selected_item in self.listWidget.selectedItems():
+            name = unicode(selected_item.text())
+            data = np.transpose(self.all_plot_items[name].getData())
+
+            data = data[:np.where(data[:, 0] < np.max(point_data[:, 0]))[0][-1], :]
+            data = data[np.where(data[:, 0] > np.min(point_data[:, 0]))[0][0]:, :]
+
+            interpolated_cont = pyasl.intep(point_data[:, 0], point_data[:, 1], data[:, 0])
+
+            data[:, 1] = data[:, 1] / interpolated_cont
+            self.all_plot_items[name].setData(data)
+            self.listPointWidget.clear()
+            self.pw.autoRange()
+         """
+
     def __init__(self):
         """
         Инициализируем окно. Добавляем иконку.
@@ -462,8 +588,8 @@ class SpecObserver(QMainWindow):
         QMainWindow.__init__(self)
         self.setWindowIcon(QIcon("web.png"))
         self.setWindowTitle("Spectrum observer")
-        setConfigOption('background', 'w')
-        setConfigOption('foreground', 'k')
+        #setConfigOption('background', 'w')
+        # setConfigOption('foreground', 'k')
 
         self.cw = QWidget()
         self.setCentralWidget(self.cw)
@@ -482,6 +608,7 @@ class SpecObserver(QMainWindow):
         self.all_point_items = {}
         self.all_lines = []
         self.all_fits_paths = {}
+        self.line_items = []
 
     def init_ui(self):
         """
@@ -511,7 +638,7 @@ class SpecObserver(QMainWindow):
         self.horizontal_first.addWidget(self.change_name)
 
         self.label = QLabel()
-        self.proxy = SignalProxy(self.pw.scene().sigMouseMoved, rateLimit=3, slot=self.mouse_moved)
+        self.proxy = SignalProxy(self.pw.scene().sigMouseMoved, rateLimit=15, slot=self.mouse_moved)
 
         self.pw.scene().sigMouseClicked.connect(self.add_to_list_point_widget)
 
@@ -576,6 +703,22 @@ class SpecObserver(QMainWindow):
         self.horizontal_fifth.addWidget(self.fits_export)
         self.horizontal_fifth.addWidget(self.export)
 
+        # self.remove = QPushButton('Remove', self)
+        # self.remove.clicked.connect(self.remove_selected_plots)
+        # self.remove.setFixedWidth(85)
+
+        self.plot_black_body = QPushButton('Black Body', self)
+        self.plot_black_body.clicked.connect(self.add_black_body_model)
+        self.plot_black_body.setFixedWidth(170)
+
+        self.remove_lines_button= QPushButton('Remove lines', self)
+        self.remove_lines_button.clicked.connect(self.remove_lines)
+        self.remove_lines_button.setFixedWidth(170)
+
+        self.calc_z = QPushButton('Calc z', self)
+        self.calc_z.clicked.connect(self.calculate_red_shift_by_z)
+        self.calc_z.setFixedWidth(170)
+
         self.vertical_layout.addWidget(self.unselect)
         self.vertical_layout.addWidget(self.listWidget)
         self.vertical_layout.addLayout(self.horizontal_first)
@@ -587,6 +730,9 @@ class SpecObserver(QMainWindow):
         self.vertical_layout.addWidget(self.listPointWidget)
         self.vertical_layout.addWidget(self.remove_points)
         self.vertical_layout.addWidget(self.export_to_matplotlib)
+        self.vertical_layout.addWidget(self.plot_black_body)
+        self.vertical_layout.addWidget(self.remove_lines_button)
+        self.vertical_layout.addWidget(self.calc_z)
         self.vertical_layout.addStretch()
         self.vertical_layout.addWidget(self.label)
 
@@ -595,6 +741,10 @@ class SpecObserver(QMainWindow):
         open_file = QAction('Open from Table', self)
         open_file.setStatusTip('Open new File')
         open_file.triggered.connect(self.table_plot)
+
+        simple_open_file = QAction("Simple open from Table", self)
+        simple_open_file.setStatusTip('Simple open new File')
+        simple_open_file.triggered.connect(self.simple_table_plot)
 
         load_lines = QAction('Load Lines', self)
         load_lines.setStatusTip('Load some Line')
@@ -615,6 +765,7 @@ class SpecObserver(QMainWindow):
         menu_bar = self.menuBar()
         menu_bar.addAction(fits_plot)
         menu_bar.addAction(open_file)
+        menu_bar.addAction(simple_open_file)
         menu_bar.addAction(cmf_plot)
         menu_bar.addAction(load_lines)
         menu_bar.addAction(clear_plot)
