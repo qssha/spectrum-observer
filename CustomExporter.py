@@ -18,6 +18,12 @@ class CustomMatplotlib(MatplotlibExporter):
         super(CustomMatplotlib, self).cleanAxes(axl)
 
     def export(self, loaded_lines, fileName=None):
+        """
+        export matplotlib window
+        :param loaded_lines:
+        :param fileName:
+        :return:
+        """
         if isinstance(self.item, PlotItem):
             ak = lineid_plot.initial_annotate_kwargs()
             ak['arrowprops']['arrowstyle'] = "->"
