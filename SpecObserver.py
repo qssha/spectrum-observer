@@ -71,14 +71,18 @@ class SpecObserver(QMainWindow):
         if lines_data_file != '':
             lines_data = np.genfromtxt(lines_data_file, dtype=str)
 
-            for i in range(len(lines_data[:, 0])):
+            if len(lines_data) > 1:
+                lines_number = len(lines_data[:, 0])
+            else:
+                lines_number = 1
+            for i in range(lines_number):
                 if i % 3 == 0:
                     line_label_position = 0.75
                 elif i % 3 == 1:
                     line_label_position = 0.85
                 else:
                     line_label_position = 0.90
-                line = InfiniteLine(pos=float(lines_data[i, 0]), label=lines_data[i, 1],
+                line = InfiniteLine(pos=float(lines_data[i, 0]), label=lines_data[i, 0],
                                     labelOpts={'position': line_label_position, 'color': mkColor("w")},
                                     name=lines_data[i, 1])
                 line.setPen(style=QtCore.Qt.DotLine)
@@ -171,7 +175,7 @@ class SpecObserver(QMainWindow):
                                              "Do you want to plot normalized spectrum from *cont file?",
                                              QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
 
-                x_limit_left = 1000
+                x_limit_left = 3000
                 x_limit_right = 8000
 
                 cmfgen_modeldata = CmfgenParse.spectr_input(cmfgen_filename)
@@ -182,7 +186,7 @@ class SpecObserver(QMainWindow):
                 cmfgen_binned_data, dt = pyasl.binningx0dt(cmfgen_modeldata[:, 0], cmfgen_modeldata[:, 1],
                                                            x0=min(cmfgen_modeldata[:, 0]), dt=dt)
                 cmfgen_smoothed, fwhm = pyasl.instrBroadGaussFast(cmfgen_binned_data[:, 0], cmfgen_binned_data[:, 1],
-                                                                  1900, edgeHandling="firstlast", fullout=True)
+                                                                  1850, fullout=True)
                 print fwhm
                 if reply == QMessageBox.Yes:
                     cmfgen_filename_cont = cmfgen_filename[0:-3] + 'cont'
@@ -400,8 +404,9 @@ class SpecObserver(QMainWindow):
                                    self.all_point_items[point_name].getData()[1][0]])
                 self.pw.removeItem(self.all_point_items[point_name])
 
+            point_data.sort(key=lambda x: x[0], reverse=False)
             point_data = np.array(point_data)
-            point_data.sort(axis=0)
+            print point_data
 
             data = data[:np.where(data[:, 0] < np.max(point_data[:, 0]))[0][-1], :]
             data = data[np.where(data[:, 0] > np.min(point_data[:, 0]))[0][0]:, :]
@@ -518,7 +523,7 @@ class SpecObserver(QMainWindow):
 
     @staticmethod
     def black_body(temp):
-        lam = np.arange(1000.0 * 1e-10, 20000. * 1e-10, 20e-10)
+        lam = np.arange(1.0 * 1e-10, 20000. * 1e-10, 20e-10)
         return lam, pyasl.planck(temp, lam=lam) * 1e-7 * 1e-18
 
     def add_black_body_model(self):

@@ -9,7 +9,7 @@ def spectr_input(file_name):
     """
     input_file = open(file_name,'r')
     freq_flux_list = []
-    all_lines = input_file.readlines();
+    all_lines = input_file.readlines()
 
     try:
         [parse_line(line, freq_flux_list) for line in all_lines]
@@ -25,7 +25,7 @@ def spectr_input(file_name):
         yint = np.array(freq_flux_list[len(freq_flux_list) / 2:], dtype=np.float64)
 
     xfreq = (3e3) / xfreq
-    yint = (yint) / (3.33e4 * xfreq * xfreq)
+    yint = (yint) / (3.33e4 * xfreq * xfreq * 100.0)
     spectum_model = np.transpose([xfreq, yint])
 
     return spectum_model
