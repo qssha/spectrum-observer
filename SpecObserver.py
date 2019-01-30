@@ -82,7 +82,7 @@ class SpecObserver(QMainWindow):
                     line_label_position = 0.85
                 else:
                     line_label_position = 0.90
-                line = InfiniteLine(pos=float(lines_data[i, 0]), label=lines_data[i, 0],
+                line = InfiniteLine(pos=float(lines_data[i, 0]), label=lines_data[i, 1],
                                     labelOpts={'position': line_label_position, 'color': mkColor("w")},
                                     name=lines_data[i, 1])
                 line.setPen(style=QtCore.Qt.DotLine)
@@ -186,7 +186,7 @@ class SpecObserver(QMainWindow):
                 cmfgen_binned_data, dt = pyasl.binningx0dt(cmfgen_modeldata[:, 0], cmfgen_modeldata[:, 1],
                                                            x0=min(cmfgen_modeldata[:, 0]), dt=dt)
                 cmfgen_smoothed, fwhm = pyasl.instrBroadGaussFast(cmfgen_binned_data[:, 0], cmfgen_binned_data[:, 1],
-                                                                  1850, fullout=True)
+                                                                  1150, fullout=True)
                 print fwhm
                 if reply == QMessageBox.Yes:
                     cmfgen_filename_cont = cmfgen_filename[0:-3] + 'cont'
