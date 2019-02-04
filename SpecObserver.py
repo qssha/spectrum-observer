@@ -186,14 +186,17 @@ class SpecObserver(QMainWindow):
                 cmfgen_binned_data, dt = pyasl.binningx0dt(cmfgen_modeldata[:, 0], cmfgen_modeldata[:, 1],
                                                            x0=min(cmfgen_modeldata[:, 0]), dt=dt)
                 cmfgen_smoothed, fwhm = pyasl.instrBroadGaussFast(cmfgen_binned_data[:, 0], cmfgen_binned_data[:, 1],
-                                                                  1150, fullout=True)
+                                                                  1750, fullout=True)
                 print fwhm
                 if reply == QMessageBox.Yes:
                     cmfgen_filename_cont = cmfgen_filename[0:-3] + 'cont'
                     cont = CmfgenParse.spectr_input(cmfgen_filename_cont)
                     interpolated_data = pyasl.intep(cont[:, 0], cont[:, 1], cmfgen_binned_data[:, 0])
+                    rot = pyasl.rotBroad(cmfgen_binned_data[:, 0], cmfgen_smoothed / interpolated_data, 0.0, 49)
                     current_plot = self.pw.plot(cmfgen_binned_data[:, 0],
-                                                (cmfgen_smoothed / interpolated_data), pen=mkColor(self.i))
+                                                (rot), pen=mkColor(self.i))
+                    #current_plot = self.pw.plot(cmfgen_binned_data[:, 0],
+                    #                            (cmfgen_smoothed / interpolated_data), pen=mkColor(self.i))
                 else:
                     current_plot = self.pw.plot(cmfgen_binned_data[:, 0], cmfgen_smoothed, pen=mkColor(self.i))
                 plot_name = cmfgen_filename.split("/")[-3]
