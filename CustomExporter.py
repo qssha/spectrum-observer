@@ -29,7 +29,6 @@ class CustomMatplotlib(MatplotlibExporter):
             ak['arrowprops']['arrowstyle'] = "->"
             pk = lineid_plot.initial_plot_kwargs()
 
-
             mpw = MatplotlibWindow()
             MatplotlibExporter.windows.append(mpw)
 

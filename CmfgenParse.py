@@ -4,7 +4,7 @@ import numpy as np
 def spectr_input(file_name):
     """
     Parse multicolumn fortran data file from CMFGEN
-    :param file_name: CMFGEN model filename 
+    :param file_name: CMFGEN model filename
     :return: np.array(wave, f   lux)
     """
     input_file = open(file_name,'r')
@@ -24,8 +24,8 @@ def spectr_input(file_name):
         xfreq = np.array(freq_flux_list[0:len(freq_flux_list) / 2], dtype=np.float64)
         yint = np.array(freq_flux_list[len(freq_flux_list) / 2:], dtype=np.float64)
 
-    xfreq = (3e3) / xfreq
-    yint = (yint) / (3.33e4 * xfreq * xfreq * 100.0)
+    xfreq = (2.99792458e3) / xfreq
+    yint = (yint * 3 * 10**-5) / (xfreq * xfreq)
     spectum_model = np.transpose([xfreq, yint])
 
     return spectum_model

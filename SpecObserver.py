@@ -175,8 +175,8 @@ class SpecObserver(QMainWindow):
                                              "Do you want to plot normalized spectrum from *cont file?",
                                              QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
 
-                x_limit_left = 3000
-                x_limit_right = 8000
+                x_limit_left = 4300
+                x_limit_right = 6800
 
                 cmfgen_modeldata = CmfgenParse.spectr_input(cmfgen_filename)
                 cmfgen_modeldata = cmfgen_modeldata[:np.where(cmfgen_modeldata[:, 0] < x_limit_right)[0][-1], :]
@@ -186,20 +186,81 @@ class SpecObserver(QMainWindow):
                 cmfgen_binned_data, dt = pyasl.binningx0dt(cmfgen_modeldata[:, 0], cmfgen_modeldata[:, 1],
                                                            x0=min(cmfgen_modeldata[:, 0]), dt=dt)
                 cmfgen_smoothed, fwhm = pyasl.instrBroadGaussFast(cmfgen_binned_data[:, 0], cmfgen_binned_data[:, 1],
-                                                                  1750, fullout=True)
+                                                                  1550, fullout=True)
                 print fwhm
                 if reply == QMessageBox.Yes:
                     cmfgen_filename_cont = cmfgen_filename[0:-3] + 'cont'
                     cont = CmfgenParse.spectr_input(cmfgen_filename_cont)
                     interpolated_data = pyasl.intep(cont[:, 0], cont[:, 1], cmfgen_binned_data[:, 0])
-                    rot = pyasl.rotBroad(cmfgen_binned_data[:, 0], cmfgen_smoothed / interpolated_data, 0.0, 49)
-                    current_plot = self.pw.plot(cmfgen_binned_data[:, 0],
-                                                (rot), pen=mkColor(self.i))
+                    #rot = pyasl.rotBroad(cmfgen_binned_data[:, 0], cmfgen_smoothed / interpolated_data, 0.0, 49)
                     #current_plot = self.pw.plot(cmfgen_binned_data[:, 0],
-                    #                            (cmfgen_smoothed / interpolated_data), pen=mkColor(self.i))
+                    #                            (rot), pen=mkColor(self.i))
+                    current_plot = self.pw.plot(cmfgen_binned_data[:, 0],
+                                                (cmfgen_smoothed / interpolated_data), pen=mkColor(self.i))
                 else:
                     current_plot = self.pw.plot(cmfgen_binned_data[:, 0], cmfgen_smoothed, pen=mkColor(self.i))
                 plot_name = cmfgen_filename.split("/")[-3]
+                self.all_plot_items[plot_name] = current_plot
+                self.add_to_list_widget(plot_name)
+                self.i += 2
+        except IOError as exception:
+            self.cmfgen_error_event(exception.message)
+
+    def cmfgen_plot_bbcont(self):
+        """
+        Method for plotting spectrum with bb cont from CMFGEN model.
+        """
+        try:
+            cmfgen_filename = unicode(QFileDialog.getOpenFileName(self, 'Open CMFGEN model file + bb'))
+
+            if cmfgen_filename != '':
+                reply = QMessageBox.question(self, 'Message',
+                                             "Do you want to plot normalized spectrum from *cont file?",
+                                             QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+
+                x_limit_left = 4300
+                x_limit_right = 6800
+
+                cmfgen_modeldata = CmfgenParse.spectr_input(cmfgen_filename)
+                cmfgen_modeldata = cmfgen_modeldata[:np.where(cmfgen_modeldata[:, 0] < x_limit_right)[0][-1], :]
+                cmfgen_modeldata = cmfgen_modeldata[np.where(cmfgen_modeldata[:, 0] > x_limit_left)[0][0]:, :]
+
+                dt = max(cmfgen_modeldata[1:, 0] - cmfgen_modeldata[0:-1, 0])
+                cmfgen_binned_data, dt = pyasl.binningx0dt(cmfgen_modeldata[:, 0], cmfgen_modeldata[:, 1],
+                                                   x0=min(cmfgen_modeldata[:, 0]), dt=dt)
+                cmfgen_smoothed, fwhm = pyasl.instrBroadGaussFast(cmfgen_binned_data[:, 0], cmfgen_binned_data[:, 1],
+                                                                   1250, fullout=True)
+
+                print fwhm
+
+                bb5_4kK = np.loadtxt("bb5.4kK")
+                bb7_7kK = np.loadtxt("bb7.7kK")
+
+                if reply == QMessageBox.Yes:
+                    cmfgen_filename_cont = cmfgen_filename[0:-3] + 'cont'
+                    cont = CmfgenParse.spectr_input(cmfgen_filename_cont)
+                    interpolated_data = pyasl.intep(cont[:, 0], cont[:, 1], cmfgen_binned_data[:, 0])
+
+                    bb54_inter = pyasl.intep(bb5_4kK[:, 0], bb5_4kK[:, 1], cmfgen_binned_data[:, 0])
+                    bb77_inter = pyasl.intep(bb7_7kK[:, 0], bb7_7kK[:, 1], cmfgen_binned_data[:, 0])
+
+                    all_cont = interpolated_data + bb54_inter * (0) ** 2 + bb77_inter * (3.4 * 10 ** 3) ** 2
+
+                    final_spec = (cmfgen_smoothed + bb54_inter * (0) ** 2 +
+                                        bb77_inter * (3.4 * 10 ** 3) ** 2) / all_cont
+
+                    current_plot = self.pw.plot(cmfgen_binned_data[:, 0],
+                                                final_spec, pen=mkColor(self.i))
+                else:
+                    bb54_inter = pyasl.intep(bb5_4kK[:, 0], bb5_4kK[:, 1], cmfgen_binned_data[:, 0])
+                    bb77_inter = pyasl.intep(bb7_7kK[:, 0], bb7_7kK[:, 1], cmfgen_binned_data[:, 0])
+
+                    final_spec = cmfgen_smoothed + bb54_inter *\
+                                       (0) ** 2 + bb77_inter * (3.4 * 10**3)**2
+
+                    current_plot = self.pw.plot(cmfgen_binned_data[:, 0], final_spec, pen=mkColor(self.i))
+
+                plot_name = cmfgen_filename.split("/")[-3] + 'bb'
                 self.all_plot_items[plot_name] = current_plot
                 self.add_to_list_widget(plot_name)
                 self.i += 2
@@ -723,6 +784,11 @@ class SpecObserver(QMainWindow):
         self.remove_lines_button.clicked.connect(self.remove_lines)
         self.remove_lines_button.setFixedWidth(170)
 
+        self.sum_plots_button = QPushButton('Sum plots', self)
+        self.sum_plots_button.clicked.connect(self.sum_plots)
+        self.sum_plots_button.setFixedWidth(170)
+
+
         self.calc_z = QPushButton('Calc z', self)
         self.calc_z.clicked.connect(self.calculate_red_shift_by_z)
         self.calc_z.setFixedWidth(170)
@@ -741,6 +807,7 @@ class SpecObserver(QMainWindow):
         self.vertical_layout.addWidget(self.plot_black_body)
         self.vertical_layout.addWidget(self.remove_lines_button)
         self.vertical_layout.addWidget(self.calc_z)
+        self.vertical_layout.addWidget(self.sum_plots_button)
         self.vertical_layout.addStretch()
         self.vertical_layout.addWidget(self.label)
 
@@ -766,6 +833,11 @@ class SpecObserver(QMainWindow):
         cmf_plot.setStatusTip('CMFGEN plot')
         cmf_plot.triggered.connect(self.cmfgen_plot)
 
+        cmf_plot_bb = QAction('Open from CMFGEN + bb', self)
+        cmf_plot_bb.setStatusTip('CMFGEN plot + bb')
+        cmf_plot_bb.triggered.connect(self.cmfgen_plot_bbcont)
+
+
         fits_plot = QAction('Open from FITS', self)
         fits_plot.setStatusTip('CMFGEN plot')
         fits_plot.triggered.connect(self.fits_plot)
@@ -775,6 +847,7 @@ class SpecObserver(QMainWindow):
         menu_bar.addAction(open_file)
         menu_bar.addAction(simple_open_file)
         menu_bar.addAction(cmf_plot)
+        menu_bar.addAction(cmf_plot_bb)
         menu_bar.addAction(load_lines)
         menu_bar.addAction(clear_plot)
 
