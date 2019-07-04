@@ -175,8 +175,8 @@ class SpecObserver(QMainWindow):
                                              "Do you want to plot normalized spectrum from *cont file?",
                                              QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
 
-                x_limit_left = 4300
-                x_limit_right = 6800
+                x_limit_left = 3000
+                x_limit_right = 10000
 
                 cmfgen_modeldata = CmfgenParse.spectr_input(cmfgen_filename)
                 cmfgen_modeldata = cmfgen_modeldata[:np.where(cmfgen_modeldata[:, 0] < x_limit_right)[0][-1], :]
@@ -244,10 +244,10 @@ class SpecObserver(QMainWindow):
                     bb54_inter = pyasl.intep(bb5_4kK[:, 0], bb5_4kK[:, 1], cmfgen_binned_data[:, 0])
                     bb77_inter = pyasl.intep(bb7_7kK[:, 0], bb7_7kK[:, 1], cmfgen_binned_data[:, 0])
 
-                    all_cont = interpolated_data + bb54_inter * (0) ** 2 + bb77_inter * (3.4 * 10 ** 3) ** 2
+                    all_cont = interpolated_data + bb54_inter * (3.4 * 10 ** 3) ** 2 + bb77_inter * (0) ** 2
 
-                    final_spec = (cmfgen_smoothed + bb54_inter * (0) ** 2 +
-                                        bb77_inter * (3.4 * 10 ** 3) ** 2) / all_cont
+                    final_spec = (cmfgen_smoothed + bb54_inter * (3.4 * 10 ** 3) ** 2 +
+                                        bb77_inter * (0) ** 2) / all_cont
 
                     current_plot = self.pw.plot(cmfgen_binned_data[:, 0],
                                                 final_spec, pen=mkColor(self.i))
