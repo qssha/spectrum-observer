@@ -12,6 +12,9 @@ from PyQt4 import QtCore
 from PyAstronomy import pyasl
 from pyqtgraph import GraphicsWindow, mkColor, InfiniteLine, SignalProxy, setConfigOption
 from scipy.optimize import curve_fit
+from scipy.interpolate import interp1d
+from scipy.interpolate import InterpolatedUnivariateSpline
+
 import pyqtgraph as pg
 
 import CmfgenParse
@@ -36,6 +39,48 @@ class SpecObserver(QMainWindow):
             if fits_file != '':
                 wave, flux = pyasl.read1dFitsSpec(fits_file)
                 current_plot = self.pw.plot(wave, flux, pen=mkColor(self.i))
+                plot_name = fits_file.split("/")[-1]
+                self.all_plot_items[plot_name] = current_plot
+                self.all_fits_paths[plot_name] = fits_file
+                self.add_to_list_widget(plot_name)
+                self.i += 2
+        except IOError as exception:
+            self.fits_error_event(exception.message)
+
+    def fits_plot_binned(self):
+        """
+        Method for plotting spectrum from 1D FITS file.
+        If plotting completed successfully, method will change text color in main window,
+        else fits_plot will call fits_error_event for displaying IOError.
+        Call add_to_list_widget with plot item name.
+        """
+        try:
+            fits_file = unicode(QFileDialog.getOpenFileName(self, 'Open FITS file'))
+            if fits_file != '':
+                wave, flux = pyasl.read1dFitsSpec(fits_file)
+                dt = 2 * (wave[1] - wave[0])
+                print dt
+                fits_binned_data, dt = pyasl.binningx0dt(wave, flux,
+                                                           x0=min(wave), dt=dt)
+                current_plot = self.pw.plot(fits_binned_data[:, 0], fits_binned_data[:, 1], pen=mkColor(self.i))
+                plot_name = fits_file.split("/")[-1]
+                self.all_plot_items[plot_name] = current_plot
+                self.all_fits_paths[plot_name] = fits_file
+                self.add_to_list_widget(plot_name)
+                self.i += 2
+        except IOError as exception:
+            self.fits_error_event(exception.message)
+
+    def fits_plot_smooth(self):
+        try:
+            fits_file = unicode(QFileDialog.getOpenFileName(self, 'Open FITS file'))
+            if fits_file != '':
+                wave, flux = pyasl.read1dFitsSpec(fits_file)
+                flux = np.nan_to_num(flux)
+                fits_smoothed, fwhm = pyasl.instrBroadGaussFast(wave, flux,
+                                                                  1050, fullout=True, edgeHandling="firstlast")
+                print fwhm
+                current_plot = self.pw.plot(wave, fits_smoothed, pen=mkColor(self.i))
                 plot_name = fits_file.split("/")[-1]
                 self.all_plot_items[plot_name] = current_plot
                 self.all_fits_paths[plot_name] = fits_file
@@ -175,7 +220,7 @@ class SpecObserver(QMainWindow):
                                              "Do you want to plot normalized spectrum from *cont file?",
                                              QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
 
-                x_limit_left = 3000
+                x_limit_left = 1000
                 x_limit_right = 10000
 
                 cmfgen_modeldata = CmfgenParse.spectr_input(cmfgen_filename)
@@ -186,7 +231,8 @@ class SpecObserver(QMainWindow):
                 cmfgen_binned_data, dt = pyasl.binningx0dt(cmfgen_modeldata[:, 0], cmfgen_modeldata[:, 1],
                                                            x0=min(cmfgen_modeldata[:, 0]), dt=dt)
                 cmfgen_smoothed, fwhm = pyasl.instrBroadGaussFast(cmfgen_binned_data[:, 0], cmfgen_binned_data[:, 1],
-                                                                  1550, fullout=True)
+                                                                  1150, fullout=True)
+                #cmfgen_smoothed = pyasl.rotBroad(cmfgen_binned_data[:, 0], cmfgen_smoothed, 0.1, 49)
                 print fwhm
                 if reply == QMessageBox.Yes:
                     cmfgen_filename_cont = cmfgen_filename[0:-3] + 'cont'
@@ -205,6 +251,7 @@ class SpecObserver(QMainWindow):
                 self.i += 2
         except IOError as exception:
             self.cmfgen_error_event(exception.message)
+
 
     def cmfgen_plot_bbcont(self):
         """
@@ -229,7 +276,7 @@ class SpecObserver(QMainWindow):
                 cmfgen_binned_data, dt = pyasl.binningx0dt(cmfgen_modeldata[:, 0], cmfgen_modeldata[:, 1],
                                                    x0=min(cmfgen_modeldata[:, 0]), dt=dt)
                 cmfgen_smoothed, fwhm = pyasl.instrBroadGaussFast(cmfgen_binned_data[:, 0], cmfgen_binned_data[:, 1],
-                                                                   1250, fullout=True)
+                                                                   1650, fullout=True)
 
                 print fwhm
 
@@ -261,6 +308,100 @@ class SpecObserver(QMainWindow):
                     current_plot = self.pw.plot(cmfgen_binned_data[:, 0], final_spec, pen=mkColor(self.i))
 
                 plot_name = cmfgen_filename.split("/")[-3] + 'bb'
+                self.all_plot_items[plot_name] = current_plot
+                self.add_to_list_widget(plot_name)
+                self.i += 2
+        except IOError as exception:
+            self.cmfgen_error_event(exception.message)
+
+    def cmfgen_plot_rot(self):
+        """
+        Method for plotting spectrum from CMFGEN model.
+        If plotting completed successfully, method will change text color in main window,
+        else cmfgen_plot will call cmfgen_error_event for displaying IOError.
+        Call add_to_list_widget with plot item name.
+        """
+        try:
+            cmfgen_filename = unicode(QFileDialog.getOpenFileName(self, 'Open CMFGEN model file'))
+
+            if cmfgen_filename != '':
+                reply = QMessageBox.question(self, 'Message',
+                                             "Do you want to plot normalized spectrum from *cont file?",
+                                             QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+
+                x_limit_left = 1000
+                x_limit_right = 10000
+
+                cmfgen_modeldata = CmfgenParse.spectr_input(cmfgen_filename)
+                cmfgen_modeldata = cmfgen_modeldata[:np.where(cmfgen_modeldata[:, 0] < x_limit_right)[0][-1], :]
+                cmfgen_modeldata = cmfgen_modeldata[np.where(cmfgen_modeldata[:, 0] > x_limit_left)[0][0]:, :]
+
+                dt = max(cmfgen_modeldata[1:, 0] - cmfgen_modeldata[0:-1, 0])
+                cmfgen_binned_data, dt = pyasl.binningx0dt(cmfgen_modeldata[:, 0], cmfgen_modeldata[:, 1],
+                                                           x0=min(cmfgen_modeldata[:, 0]), dt=dt)
+                cmfgen_smoothed, fwhm = pyasl.instrBroadGaussFast(cmfgen_binned_data[:, 0], cmfgen_binned_data[:, 1],
+                                                                  1550, fullout=True)
+                cmfgen_smoothed = pyasl.rotBroad(cmfgen_binned_data[:, 0], cmfgen_smoothed, 0.1, 49)
+                print fwhm
+                if reply == QMessageBox.Yes:
+                    cmfgen_filename_cont = cmfgen_filename[0:-3] + 'cont'
+                    cont = CmfgenParse.spectr_input(cmfgen_filename_cont)
+                    interpolated_data = pyasl.intep(cont[:, 0], cont[:, 1], cmfgen_binned_data[:, 0])
+                    rot = pyasl.rotBroad(cmfgen_binned_data[:, 0], cmfgen_smoothed / interpolated_data, 0.0, 80)
+                    current_plot = self.pw.plot(cmfgen_binned_data[:, 0],
+                                                (rot), pen=mkColor(self.i))
+                else:
+                    current_plot = self.pw.plot(cmfgen_binned_data[:, 0], cmfgen_smoothed, pen=mkColor(self.i))
+                plot_name = cmfgen_filename.split("/")[-3]
+                self.all_plot_items[plot_name] = current_plot
+                self.add_to_list_widget(plot_name)
+                self.i += 2
+        except IOError as exception:
+            self.cmfgen_error_event(exception.message)
+
+    def cmfgen_plot_interp(self):
+        """
+        Method for plotting spectrum from CMFGEN model with interpolation smoothing.
+        If plotting completed successfully, method will change text color in main window,
+        else cmfgen_plot will call cmfgen_error_event for displaying IOError.
+        Call add_to_list_widget with plot item name.
+        """
+        try:
+            cmfgen_filename = unicode(QFileDialog.getOpenFileName(self, 'Open CMFGEN model file'))
+
+            if cmfgen_filename != '':
+                reply = QMessageBox.question(self, 'Message',
+                                             "Do you want to plot normalized spectrum from *cont file?",
+                                             QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+
+                x_limit_left = 2000
+                x_limit_right = 26000
+
+                cmfgen_modeldata = CmfgenParse.spectr_input(cmfgen_filename)
+                cmfgen_modeldata = cmfgen_modeldata[:np.where(cmfgen_modeldata[:, 0] < x_limit_right)[0][-1], :]
+                cmfgen_modeldata = cmfgen_modeldata[np.where(cmfgen_modeldata[:, 0] > x_limit_left)[0][0]:, :]
+
+                delta_x = np.max(cmfgen_modeldata[:, 0]) - np.min(cmfgen_modeldata[:, 0])
+                grid_step = 0.1
+                points_count = delta_x / grid_step
+                cmfgen_model_new_grid = np.linspace(np.min(cmfgen_modeldata[:, 0]), np.max(cmfgen_modeldata[:, 0]), points_count)
+
+                cmfgen_model_interp_function = interp1d(cmfgen_modeldata[:, 0], cmfgen_modeldata[:, 1])
+                cmfgen_model_new_flux = cmfgen_model_interp_function(cmfgen_model_new_grid)
+                #cmfgen_model_new_flux = pyasl.intep(cmfgen_modeldata[:, 0], cmfgen_modeldata[:, 1], cmfgen_model_new_grid)
+
+                fwhm = 4.2
+                cmfgen_model_new_flux, fwhm = pyasl.instrBroadGaussFast(cmfgen_model_new_grid, cmfgen_model_new_flux,
+                                                                  np.mean(cmfgen_model_new_grid) / fwhm, fullout=True)
+                if reply == QMessageBox.Yes:
+                    cmfgen_filename_cont = cmfgen_filename[0:-3] + 'cont'
+                    cont = CmfgenParse.spectr_input(cmfgen_filename_cont)
+                    interpolated_data = pyasl.intep(cont[:, 0], cont[:, 1], cmfgen_model_new_grid)
+                    current_plot = self.pw.plot(cmfgen_model_new_grid,
+                                                (cmfgen_model_new_flux / interpolated_data), pen=mkColor(self.i))
+                else:
+                    current_plot = self.pw.plot(cmfgen_model_new_grid, cmfgen_model_new_flux, pen=mkColor(self.i))
+                plot_name = cmfgen_filename.split("/")[-3] + 'interp'
                 self.all_plot_items[plot_name] = current_plot
                 self.add_to_list_widget(plot_name)
                 self.i += 2
@@ -837,6 +978,13 @@ class SpecObserver(QMainWindow):
         cmf_plot_bb.setStatusTip('CMFGEN plot + bb')
         cmf_plot_bb.triggered.connect(self.cmfgen_plot_bbcont)
 
+        cmf_plot_rot = QAction('Open from CMFGEN + rot', self)
+        cmf_plot_rot.setStatusTip('CMFGEN plot')
+        cmf_plot_rot.triggered.connect(self.cmfgen_plot_rot)
+
+        cmf_plot_interp = QAction('Open from CMFGEN with interp', self)
+        cmf_plot_interp.setStatusTip('CMFGEN plot')
+        cmf_plot_interp.triggered.connect(self.cmfgen_plot_interp)
 
         fits_plot = QAction('Open from FITS', self)
         fits_plot.setStatusTip('CMFGEN plot')
@@ -848,6 +996,8 @@ class SpecObserver(QMainWindow):
         menu_bar.addAction(simple_open_file)
         menu_bar.addAction(cmf_plot)
         menu_bar.addAction(cmf_plot_bb)
+        menu_bar.addAction(cmf_plot_rot)
+        menu_bar.addAction(cmf_plot_interp)
         menu_bar.addAction(load_lines)
         menu_bar.addAction(clear_plot)
 
