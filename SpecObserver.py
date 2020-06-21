@@ -374,7 +374,7 @@ class SpecObserver(QMainWindow):
                                              "Do you want to plot normalized spectrum from *cont file?",
                                              QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
 
-                x_limit_left = 2000
+                x_limit_left = 1900
                 x_limit_right = 26000
 
                 cmfgen_modeldata = CmfgenParse.spectr_input(cmfgen_filename)
@@ -390,7 +390,7 @@ class SpecObserver(QMainWindow):
                 cmfgen_model_new_flux = cmfgen_model_interp_function(cmfgen_model_new_grid)
                 #cmfgen_model_new_flux = pyasl.intep(cmfgen_modeldata[:, 0], cmfgen_modeldata[:, 1], cmfgen_model_new_grid)
 
-                fwhm = 4.2
+                fwhm = 3.4
                 cmfgen_model_new_flux, fwhm = pyasl.instrBroadGaussFast(cmfgen_model_new_grid, cmfgen_model_new_flux,
                                                                   np.mean(cmfgen_model_new_grid) / fwhm, fullout=True)
                 if reply == QMessageBox.Yes:

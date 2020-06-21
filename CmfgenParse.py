@@ -40,7 +40,7 @@ def parse_line(line, freq_flux_list):
     line = line.rstrip().split()
     if line == [] or "." not in line[0]:
         return
-    elif eval(line[0]) < 0 or eval(line[-1]) < 0:
+    elif "E" not in line[0]:
         freq_flux_list.extend(list(map(lambda x: eval(x),line)))
     else:
         freq_flux_list.extend(line)
