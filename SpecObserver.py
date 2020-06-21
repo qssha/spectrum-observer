@@ -3,12 +3,12 @@
 
 import sys
 import numpy as np
-from PyQt4.QtGui import QMainWindow, QApplication, QHBoxLayout, QAbstractItemView, QWidget, QVBoxLayout
-from PyQt4.QtGui import QAction, QPushButton, QListWidget, QListWidgetItem, QLabel, QInputDialog
-from PyQt4.QtGui import QFileDialog
-from PyQt4.QtGui import QIcon
-from PyQt4.QtGui import QMessageBox
-from PyQt4 import QtCore
+from PyQt5.QtWidgets import QMainWindow, QApplication, QHBoxLayout, QAbstractItemView, QWidget, QVBoxLayout
+from PyQt5.QtWidgets import QAction, QPushButton, QListWidget, QListWidgetItem, QLabel, QInputDialog
+from PyQt5.QtWidgets import QFileDialog
+from PyQt5.QtGui import QIcon
+from PyQt5.QtWidgets import QMessageBox
+from PyQt5 import QtCore
 from PyAstronomy import pyasl
 from pyqtgraph import GraphicsWindow, mkColor, InfiniteLine, SignalProxy, setConfigOption
 from scipy.optimize import curve_fit

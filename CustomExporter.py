@@ -1,5 +1,5 @@
 from pyqtgraph import fn, QtCore, PlotItem
-from PyQt4.QtGui import QMainWindow
+from PyQt5.QtWidgets import QMainWindow
 from pyqtgraph.exporters import MatplotlibExporter
 import lineid_plot
 import numpy as np
