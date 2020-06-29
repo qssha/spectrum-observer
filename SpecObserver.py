@@ -13,9 +13,7 @@ from PyAstronomy import pyasl
 from pyqtgraph import GraphicsWindow, mkColor, InfiniteLine, SignalProxy, setConfigOption
 from scipy.optimize import curve_fit
 from scipy.interpolate import interp1d
-from scipy.interpolate import InterpolatedUnivariateSpline
 
-import pyqtgraph as pg
 
 import CmfgenParse
 import CustomExporter
@@ -35,8 +33,8 @@ class SpecObserver(QMainWindow):
         Call add_to_list_widget with plot item name.
         """
         try:
-            fits_file = unicode(QFileDialog.getOpenFileName(self, 'Open FITS file'))
-            if fits_file != '':
+            fits_file, ok = QFileDialog.getOpenFileName(self, 'Open FITS file')
+            if ok:
                 wave, flux = pyasl.read1dFitsSpec(fits_file)
                 current_plot = self.pw.plot(wave, flux, pen=mkColor(self.i))
                 plot_name = fits_file.split("/")[-1]
@@ -423,7 +421,7 @@ class SpecObserver(QMainWindow):
         """
         item = QListWidgetItem('%s' % name)
         # print(self.all_plot_items[unicode(item.text())].getData())
-        item.setBackgroundColor(mkColor(self.i))
+        item.setBackground(mkColor(self.i))
         self.listWidget.addItem(item)
 
     def list_widget_clear_selection(self):
