@@ -220,8 +220,8 @@ class SpecObserver(QMainWindow):
                                              "Do you want to plot normalized spectrum from *cont file?",
                                              QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
 
-                x_limit_left = 1000
-                x_limit_right = 10000
+                x_limit_left = 4400
+                x_limit_right = 4950
 
                 cmfgen_modeldata = CmfgenParse.spectr_input(cmfgen_filename)
                 cmfgen_modeldata = cmfgen_modeldata[:np.where(cmfgen_modeldata[:, 0] < x_limit_right)[0][-1], :]
@@ -231,9 +231,10 @@ class SpecObserver(QMainWindow):
                 cmfgen_binned_data, dt = pyasl.binningx0dt(cmfgen_modeldata[:, 0], cmfgen_modeldata[:, 1],
                                                            x0=min(cmfgen_modeldata[:, 0]), dt=dt)
                 cmfgen_smoothed, fwhm = pyasl.instrBroadGaussFast(cmfgen_binned_data[:, 0], cmfgen_binned_data[:, 1],
-                                                                  1150, fullout=True)
+                                                                  15000, fullout=True)
                 #cmfgen_smoothed = pyasl.rotBroad(cmfgen_binned_data[:, 0], cmfgen_smoothed, 0.1, 49)
                 print fwhm
+                cmfgen_smoothed = pyasl.rotBroad(cmfgen_binned_data[:, 0], cmfgen_smoothed, 0.0, 110.0)
                 if reply == QMessageBox.Yes:
                     cmfgen_filename_cont = cmfgen_filename[0:-3] + 'cont'
                     cont = CmfgenParse.spectr_input(cmfgen_filename_cont)
@@ -374,15 +375,15 @@ class SpecObserver(QMainWindow):
                                              "Do you want to plot normalized spectrum from *cont file?",
                                              QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
 
-                x_limit_left = 1900
-                x_limit_right = 26000
+                x_limit_left = 4000
+                x_limit_right = 7000
 
                 cmfgen_modeldata = CmfgenParse.spectr_input(cmfgen_filename)
                 cmfgen_modeldata = cmfgen_modeldata[:np.where(cmfgen_modeldata[:, 0] < x_limit_right)[0][-1], :]
                 cmfgen_modeldata = cmfgen_modeldata[np.where(cmfgen_modeldata[:, 0] > x_limit_left)[0][0]:, :]
 
                 delta_x = np.max(cmfgen_modeldata[:, 0]) - np.min(cmfgen_modeldata[:, 0])
-                grid_step = 0.1
+                grid_step = 0.05
                 points_count = delta_x / grid_step
                 cmfgen_model_new_grid = np.linspace(np.min(cmfgen_modeldata[:, 0]), np.max(cmfgen_modeldata[:, 0]), points_count)
 
@@ -390,9 +391,10 @@ class SpecObserver(QMainWindow):
                 cmfgen_model_new_flux = cmfgen_model_interp_function(cmfgen_model_new_grid)
                 #cmfgen_model_new_flux = pyasl.intep(cmfgen_modeldata[:, 0], cmfgen_modeldata[:, 1], cmfgen_model_new_grid)
 
-                fwhm = 3.4
+                fwhm = 0.31
                 cmfgen_model_new_flux, fwhm = pyasl.instrBroadGaussFast(cmfgen_model_new_grid, cmfgen_model_new_flux,
                                                                   np.mean(cmfgen_model_new_grid) / fwhm, fullout=True)
+                #cmfgen_model_new_flux = pyasl.rotBroad(cmfgen_model_new_grid, cmfgen_model_new_flux, 1.0, 120.0)
                 if reply == QMessageBox.Yes:
                     cmfgen_filename_cont = cmfgen_filename[0:-3] + 'cont'
                     cont = CmfgenParse.spectr_input(cmfgen_filename_cont)

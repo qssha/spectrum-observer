@@ -24,7 +24,8 @@ def spectr_input(file_name):
         xfreq = np.array(freq_flux_list[0:len(freq_flux_list) / 2], dtype=np.float64)
         yint = np.array(freq_flux_list[len(freq_flux_list) / 2:], dtype=np.float64)
 
-    xfreq = (2.99792458e3) / xfreq
+
+    xfreq = (2.99702547e3) / xfreq
     yint = (yint * 3 * 10**-5) / (xfreq * xfreq)
     spectum_model = np.transpose([xfreq, yint])
 
