@@ -18,8 +18,6 @@ from scipy.interpolate import InterpolatedUnivariateSpline
 import pyqtgraph as pg
 
 import CmfgenParse
-import CustomExporter
-
 
 class SpecObserver(QMainWindow):
     """Main window class of program for spectral plotting.
@@ -375,8 +373,8 @@ class SpecObserver(QMainWindow):
                                              "Do you want to plot normalized spectrum from *cont file?",
                                              QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
 
-                x_limit_left = 4000
-                x_limit_right = 7000
+                x_limit_left = 3000
+                x_limit_right = 8000
 
                 cmfgen_modeldata = CmfgenParse.spectr_input(cmfgen_filename)
                 cmfgen_modeldata = cmfgen_modeldata[:np.where(cmfgen_modeldata[:, 0] < x_limit_right)[0][-1], :]
@@ -391,7 +389,7 @@ class SpecObserver(QMainWindow):
                 cmfgen_model_new_flux = cmfgen_model_interp_function(cmfgen_model_new_grid)
                 #cmfgen_model_new_flux = pyasl.intep(cmfgen_modeldata[:, 0], cmfgen_modeldata[:, 1], cmfgen_model_new_grid)
 
-                fwhm = 0.31
+                fwhm = 5.05
                 cmfgen_model_new_flux, fwhm = pyasl.instrBroadGaussFast(cmfgen_model_new_grid, cmfgen_model_new_flux,
                                                                   np.mean(cmfgen_model_new_grid) / fwhm, fullout=True)
                 #cmfgen_model_new_flux = pyasl.rotBroad(cmfgen_model_new_grid, cmfgen_model_new_flux, 1.0, 120.0)
@@ -680,14 +678,6 @@ class SpecObserver(QMainWindow):
         """
         QMessageBox.critical(self, "IOError", "Can't evaluate input string\n" + message)
 
-    def export_matplotlib(self):
-        """
-        Export with lines to Matplotlib
-        :return: 
-        """
-        exporter = CustomExporter.CustomMatplotlib(self.pw)
-        exporter.export(self.all_lines)
-
     def export_as_fits_for_selected_plot(self):
         """
         Export spectrum as FITS
@@ -901,10 +891,6 @@ class SpecObserver(QMainWindow):
         self.horizontal_fourth.addWidget(self.calculate_continuum)
         self.horizontal_fourth.addWidget(self.calculate_fwhm)
 
-        self.export_to_matplotlib = QPushButton('Export to eps/pdf', self)
-        self.export_to_matplotlib.clicked.connect(self.export_matplotlib)
-        self.export_to_matplotlib.setFixedWidth(170)
-
         self.horizontal_fifth = QHBoxLayout()
         self.fits_export = QPushButton('Export FITS', self)
         self.fits_export.clicked.connect(self.export_as_fits_for_selected_plot)
@@ -946,7 +932,6 @@ class SpecObserver(QMainWindow):
         self.vertical_layout.addWidget(self.unselect_points)
         self.vertical_layout.addWidget(self.listPointWidget)
         self.vertical_layout.addWidget(self.remove_points)
-        self.vertical_layout.addWidget(self.export_to_matplotlib)
         self.vertical_layout.addWidget(self.plot_black_body)
         self.vertical_layout.addWidget(self.remove_lines_button)
         self.vertical_layout.addWidget(self.calc_z)
