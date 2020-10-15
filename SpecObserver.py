@@ -13,11 +13,9 @@ from PyAstronomy import pyasl
 from pyqtgraph import GraphicsWindow, mkColor, InfiniteLine, SignalProxy, setConfigOption
 from scipy.optimize import curve_fit
 from scipy.interpolate import interp1d
-from scipy.interpolate import InterpolatedUnivariateSpline
-
-import pyqtgraph as pg
 
 import CmfgenParse
+
 
 class SpecObserver(QMainWindow):
     """Main window class of program for spectral plotting.
