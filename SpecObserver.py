@@ -16,6 +16,7 @@ from scipy.interpolate import interp1d
 
 import CmfgenParse
 
+
 class SpecObserver(QMainWindow):
     """Main window class of program for spectral plotting.
      Attributes:
