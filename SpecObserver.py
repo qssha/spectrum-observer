@@ -14,10 +14,7 @@ from pyqtgraph import GraphicsWindow, mkColor, InfiniteLine, SignalProxy, setCon
 from scipy.optimize import curve_fit
 from scipy.interpolate import interp1d
 
-
 import CmfgenParse
-import CustomExporter
-
 
 class SpecObserver(QMainWindow):
     """Main window class of program for spectral plotting.
@@ -676,14 +673,6 @@ class SpecObserver(QMainWindow):
         """
         QMessageBox.critical(self, "IOError", "Can't evaluate input string\n" + message)
 
-    def export_matplotlib(self):
-        """
-        Export with lines to Matplotlib
-        :return: 
-        """
-        exporter = CustomExporter.CustomMatplotlib(self.pw)
-        exporter.export(self.all_lines)
-
     def export_as_fits_for_selected_plot(self):
         """
         Export spectrum as FITS
@@ -897,10 +886,6 @@ class SpecObserver(QMainWindow):
         self.horizontal_fourth.addWidget(self.calculate_continuum)
         self.horizontal_fourth.addWidget(self.calculate_fwhm)
 
-        self.export_to_matplotlib = QPushButton('Export to eps/pdf', self)
-        self.export_to_matplotlib.clicked.connect(self.export_matplotlib)
-        self.export_to_matplotlib.setFixedWidth(170)
-
         self.horizontal_fifth = QHBoxLayout()
         self.fits_export = QPushButton('Export FITS', self)
         self.fits_export.clicked.connect(self.export_as_fits_for_selected_plot)
@@ -942,7 +927,6 @@ class SpecObserver(QMainWindow):
         self.vertical_layout.addWidget(self.unselect_points)
         self.vertical_layout.addWidget(self.listPointWidget)
         self.vertical_layout.addWidget(self.remove_points)
-        self.vertical_layout.addWidget(self.export_to_matplotlib)
         self.vertical_layout.addWidget(self.plot_black_body)
         self.vertical_layout.addWidget(self.remove_lines_button)
         self.vertical_layout.addWidget(self.calc_z)
