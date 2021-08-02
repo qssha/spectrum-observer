@@ -370,8 +370,8 @@ class SpecObserver(QMainWindow):
                                              "Do you want to plot normalized spectrum from *cont file?",
                                              QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
 
-                x_limit_left = 1900
-                x_limit_right = 26000
+                x_limit_left = 3000
+                x_limit_right = 8000
 
                 cmfgen_modeldata = CmfgenParse.spectr_input(cmfgen_filename)
                 cmfgen_modeldata = cmfgen_modeldata[:np.where(cmfgen_modeldata[:, 0] < x_limit_right)[0][-1], :]
