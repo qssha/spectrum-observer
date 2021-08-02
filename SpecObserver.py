@@ -363,7 +363,7 @@ class SpecObserver(QMainWindow):
         Call add_to_list_widget with plot item name.
         """
         try:
-            cmfgen_filename = QFileDialog.getOpenFileName(self, 'Open CMFGEN model file')
+            cmfgen_filename = QFileDialog.getOpenFileName(self, 'Open CMFGEN model file')[0]
 
             if cmfgen_filename != '':
                 reply = QMessageBox.question(self, 'Message',
