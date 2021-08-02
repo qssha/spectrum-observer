@@ -107,7 +107,7 @@ class SpecObserver(QMainWindow):
         Method for plot spectrum lines with labels.
         Problems with flux < 10**-16
         """
-        lines_data_file = QFileDialog.getOpenFileName(self, 'Open file')
+        lines_data_file = QFileDialog.getOpenFileName(self, 'Open file')[0]
 
         if lines_data_file != '':
             lines_data = np.genfromtxt(lines_data_file, dtype=str)
