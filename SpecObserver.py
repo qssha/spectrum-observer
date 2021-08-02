@@ -107,7 +107,7 @@ class SpecObserver(QMainWindow):
         Method for plot spectrum lines with labels.
         Problems with flux < 10**-16
         """
-        lines_data_file = unicode(QFileDialog.getOpenFileName(self, 'Open file'))
+        lines_data_file = QFileDialog.getOpenFileName(self, 'Open file')
 
         if lines_data_file != '':
             lines_data = np.genfromtxt(lines_data_file, dtype=str)
@@ -147,7 +147,7 @@ class SpecObserver(QMainWindow):
         Call add_to_list_widget with plot item name.
         """
         try:
-            file_name = unicode(QFileDialog.getOpenFileName(self, 'Open two-column table data file'))
+            file_name = QFileDialog.getOpenFileName(self, 'Open two-column table data file')
             if file_name != '':
                 data = np.loadtxt(file_name)
                 dt = max(data[1:, 0] - data[0:-1, 0])
@@ -168,7 +168,7 @@ class SpecObserver(QMainWindow):
         Call add_to_list_widget with plot item name.
         """
         try:
-            file_name = unicode(QFileDialog.getOpenFileName(self, 'Open two-column table data file'))
+            file_name = QFileDialog.getOpenFileName(self, 'Open two-column table data file')
             if file_name != '':
                 data = np.loadtxt(file_name)
                 current_plot = self.pw.plot(data[:, 0], data[:, 1], pen=mkColor(self.i))
@@ -209,7 +209,7 @@ class SpecObserver(QMainWindow):
         Call add_to_list_widget with plot item name.
         """
         try:
-            cmfgen_filename = unicode(QFileDialog.getOpenFileName(self, 'Open CMFGEN model file'))
+            cmfgen_filename = QFileDialog.getOpenFileName(self, 'Open CMFGEN model file')
 
             if cmfgen_filename != '':
                 reply = QMessageBox.question(self, 'Message',
@@ -254,7 +254,7 @@ class SpecObserver(QMainWindow):
         Method for plotting spectrum with bb cont from CMFGEN model.
         """
         try:
-            cmfgen_filename = unicode(QFileDialog.getOpenFileName(self, 'Open CMFGEN model file + bb'))
+            cmfgen_filename = QFileDialog.getOpenFileName(self, 'Open CMFGEN model file + bb')
 
             if cmfgen_filename != '':
                 reply = QMessageBox.question(self, 'Message',
@@ -318,7 +318,7 @@ class SpecObserver(QMainWindow):
         Call add_to_list_widget with plot item name.
         """
         try:
-            cmfgen_filename = unicode(QFileDialog.getOpenFileName(self, 'Open CMFGEN model file'))
+            cmfgen_filename = QFileDialog.getOpenFileName(self, 'Open CMFGEN model file')
 
             if cmfgen_filename != '':
                 reply = QMessageBox.question(self, 'Message',
@@ -363,7 +363,7 @@ class SpecObserver(QMainWindow):
         Call add_to_list_widget with plot item name.
         """
         try:
-            cmfgen_filename = unicode(QFileDialog.getOpenFileName(self, 'Open CMFGEN model file'))
+            cmfgen_filename = QFileDialog.getOpenFileName(self, 'Open CMFGEN model file')
 
             if cmfgen_filename != '':
                 reply = QMessageBox.question(self, 'Message',
