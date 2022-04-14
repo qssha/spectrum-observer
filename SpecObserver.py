@@ -371,8 +371,8 @@ class SpecObserver(QMainWindow):
                                              "Do you want to plot normalized spectrum from *cont file?",
                                              QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
 
-                x_limit_left = 3000
-                x_limit_right = 8000
+                x_limit_left = 2000
+                x_limit_right = 11000
 
                 cmfgen_modeldata = CmfgenParse.spectr_input(cmfgen_filename)
                 cmfgen_modeldata = cmfgen_modeldata[:np.where(cmfgen_modeldata[:, 0] < x_limit_right)[0][-1], :]
@@ -387,10 +387,10 @@ class SpecObserver(QMainWindow):
                 cmfgen_model_new_flux = cmfgen_model_interp_function(cmfgen_model_new_grid)
                 #cmfgen_model_new_flux = pyasl.intep(cmfgen_modeldata[:, 0], cmfgen_modeldata[:, 1], cmfgen_model_new_grid)
 
-                fwhm = 5.05
+                fwhm = 2.25
                 cmfgen_model_new_flux, fwhm = pyasl.instrBroadGaussFast(cmfgen_model_new_grid, cmfgen_model_new_flux,
                                                                   np.mean(cmfgen_model_new_grid) / fwhm, fullout=True)
-                #cmfgen_model_new_flux = pyasl.rotBroad(cmfgen_model_new_grid, cmfgen_model_new_flux, 1.0, 120.0)
+                #cmfgen_model_new_flux = pyasl.rotBroad(cmfgen_model_new_grid, cmfgen_model_new_flux, 0.0, 50.0)
                 if reply == QMessageBox.Yes:
                     cmfgen_filename_cont = cmfgen_filename[0:-3] + 'cont'
                     cont = CmfgenParse.spectr_input(cmfgen_filename_cont)
@@ -533,6 +533,24 @@ class SpecObserver(QMainWindow):
                     window_length_cell = int(window_length / max(data[1:, 0] - data[0:-1, 0]))
                     if window_length_cell % 2 == 0: window_length_cell += 1
                     data[:, 1] = pyasl.smooth(data[:, 1], window_length_cell, 'hamming')
+                    self.all_plot_items[name].setData(data)
+        except NameError and ValueError as exception:
+            self.name_error_event(exception.message)
+
+
+    def rot_broad_selected_plots(self):
+        """
+        Smooth selected plots
+        :return:
+        """
+        text, ok = QInputDialog.getText(self, 'Data rot broadening', 'Enter rotational velocity, km/s:')
+        try:
+            if text != '' and ok is True:
+                velocity = eval(str(text))
+                for selected_item in self.listWidget.selectedItems():
+                    name = unicode(selected_item.text())
+                    data = np.transpose(self.all_plot_items[name].getData())
+                    data[:, 1] = pyasl.rotBroad(data[:, 0], data[:, 1], 0.0, velocity)
                     self.all_plot_items[name].setData(data)
         except NameError and ValueError as exception:
             self.name_error_event(exception.message)
@@ -868,14 +886,14 @@ class SpecObserver(QMainWindow):
         self.horizontal_second.addWidget(self.calculate_redshift)
 
         self.horizontal_third = QHBoxLayout()
-        self.calculate_smooth = QPushButton('Smooth', self)
-        self.calculate_smooth.clicked.connect(self.smooth_selected_plots)
-        self.calculate_smooth.setFixedWidth(85)
+        self.calculate_rot_broad = QPushButton('Rot', self)
+        self.calculate_rot_broad.clicked.connect(self.rot_broad_selected_plots)
+        self.calculate_rot_broad.setFixedWidth(85)
         self.calculate_unred = QPushButton('Unred', self)
         self.calculate_unred.clicked.connect(self.unred_selected_plots)
         self.calculate_unred.setFixedWidth(85)
 
-        self.horizontal_third.addWidget(self.calculate_smooth)
+        self.horizontal_third.addWidget(self.calculate_rot_broad)
         self.horizontal_third.addWidget(self.calculate_unred)
 
         self.horizontal_fourth = QHBoxLayout()
