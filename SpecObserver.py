@@ -40,7 +40,7 @@ class SpecObserver(QMainWindow):
                 self.all_fits_paths[plot_name] = fits_file
                 self.add_to_list_widget(plot_name)
                 self.i += 2
-        except (IOError, ValueError, TypeError) as exception:
+        except (IOError, ValueError) as exception:
             self.fits_error_event(exception.message)
 
     def fits_error_event(self, exception):
@@ -111,7 +111,7 @@ class SpecObserver(QMainWindow):
                 self.all_plot_items[plot_name] = current_plot
                 self.add_to_list_widget(plot_name)
                 self.i += 2
-        except (IOError, ValueError, TypeError) as exception:
+        except (IOError, ValueError) as exception:
             self.table_error_event(exception)
 
     def simple_table_plot(self):
@@ -203,7 +203,7 @@ class SpecObserver(QMainWindow):
                 self.all_plot_items[plot_name] = current_plot
                 self.add_to_list_widget(plot_name)
                 self.i += 2
-        except (IOError, ValueError, TypeError) as exception:
+        except (IOError, ValueError) as exception:
             self.cmfgen_error_event(exception)
 
     def cmfgen_error_event(self, exception):
@@ -390,7 +390,6 @@ class SpecObserver(QMainWindow):
 
             point_data.sort(key=lambda x: x[0], reverse=False)
             point_data = np.array(point_data)
-            print point_data
 
             data = data[:np.where(data[:, 0] < np.max(point_data[:, 0]))[0][-1], :]
             data = data[np.where(data[:, 0] > np.min(point_data[:, 0]))[0][0]:, :]
@@ -433,8 +432,6 @@ class SpecObserver(QMainWindow):
                     y_fit = SpecObserver.func_gauss(x, popt[0], top_peak, popt[1], popt[2], popt[3])
                     self.pw.plot(x, y_fit, pen=mkColor(self.i))
                     self.i += 2
-
-                    print popt[1] * 2.355
 
     @staticmethod
     def func_gauss(x, A, mu, sig, lin, off):
