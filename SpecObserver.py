@@ -40,16 +40,16 @@ class SpecObserver(QMainWindow):
                 self.all_fits_paths[plot_name] = fits_file
                 self.add_to_list_widget(plot_name)
                 self.i += 2
-        except IOError as exception:
+        except (IOError, ValueError, TypeError) as exception:
             self.fits_error_event(exception.message)
 
-    def fits_error_event(self, message):
+    def fits_error_event(self, exception):
         """
         Method creates window with error message, 
         when fits_plot raise IOError.
         :param message: The error message.
         """
-        QMessageBox.critical(self, "IOError", "Can't read FITS file\n" + message)
+        QMessageBox.critical(self, type(exception).__name__, "Can't read FITS file\n" + exception.message)
 
     def closeEvent(self, event):
         reply = QMessageBox.question(self, 'Message',
@@ -88,10 +88,6 @@ class SpecObserver(QMainWindow):
                 self.pw.addItem(line)
                 self.all_lines.append([float(lines_data[i, 0]), lines_data[i, 1]])
                 self.line_items.append(line)
-        """
-        Method asking user about exit from application
-        :param event: Accept close event
-        """
 
     def remove_lines(self):
         for line in self.line_items:
@@ -115,8 +111,8 @@ class SpecObserver(QMainWindow):
                 self.all_plot_items[plot_name] = current_plot
                 self.add_to_list_widget(plot_name)
                 self.i += 2
-        except IOError as exception:
-            self.table_error_event(exception.message)
+        except (IOError, ValueError, TypeError) as exception:
+            self.table_error_event(exception)
 
     def simple_table_plot(self):
         """
@@ -134,16 +130,16 @@ class SpecObserver(QMainWindow):
                 self.all_plot_items[plot_name] = current_plot
                 self.add_to_list_widget(plot_name)
                 self.i += 2
-        except IOError as exception:
-            self.table_error_event(exception.message)
+        except (IOError, ValueError, TypeError) as exception:
+            self.table_error_event(exception)
 
-    def table_error_event(self, message):
+    def table_error_event(self, exception):
         """
         Method creates window with error message, 
         when table_plot raise IOError.
-        :param message: The error message.
+        :param exception: exception.
         """
-        QMessageBox.critical(self, "IOError", "Can't read table file\n" + message)
+        QMessageBox.critical(self, type(exception).__name__, "Can't read table file\n" + exception.message)
 
     def clear_plot(self):
         """
@@ -205,14 +201,14 @@ class SpecObserver(QMainWindow):
                 self.all_plot_items[plot_name] = current_plot
                 self.add_to_list_widget(plot_name)
                 self.i += 2
-        except (IOError, ValueError) as exception:
+        except (IOError, ValueError, TypeError) as exception:
             self.cmfgen_error_event(exception)
 
     def cmfgen_error_event(self, exception):
         """
         Method creates window with error message, 
         when cmfgen_plot raise IOError.
-        :param message: The error message.
+        :param message: exception.
         """
         QMessageBox.critical(self, type(exception).__name__, "Can't read CMFGEN model file\n" + exception.message)
 
