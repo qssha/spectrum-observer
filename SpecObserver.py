@@ -192,7 +192,9 @@ class SpecObserver(QMainWindow):
                 if reply == QMessageBox.Yes:
                     cmfgen_filename_cont = cmfgen_filename[0:-3] + 'cont'
                     cont = CmfgenParse.spectr_input(cmfgen_filename_cont)
-                    interpolated_data = pyasl.intep(cont[:, 0], cont[:, 1], cmfgen_model_new_grid)
+
+                    cmfgen_model_cont_interp_function = interp1d(cont[:, 0], cont[:, 1])
+                    interpolated_data = cmfgen_model_cont_interp_function(cmfgen_model_new_grid)
                     current_plot = self.pw.plot(cmfgen_model_new_grid,
                                                 (cmfgen_model_new_flux / interpolated_data), pen=mkColor(self.i))
                 else:
@@ -393,7 +395,8 @@ class SpecObserver(QMainWindow):
             data = data[:np.where(data[:, 0] < np.max(point_data[:, 0]))[0][-1], :]
             data = data[np.where(data[:, 0] > np.min(point_data[:, 0]))[0][0]:, :]
 
-            interpolated_cont = pyasl.intep(point_data[:, 0], point_data[:, 1], data[:, 0])
+            cont_interp_function = interp1d(point_data[:, 0], point_data[:, 1])
+            interpolated_cont = cont_interp_function(data[:, 0])
 
             data[:, 1] = data[:, 1] / interpolated_cont
             self.all_plot_items[name].setData(data)
