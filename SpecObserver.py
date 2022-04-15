@@ -130,7 +130,7 @@ class SpecObserver(QMainWindow):
                 self.all_plot_items[plot_name] = current_plot
                 self.add_to_list_widget(plot_name)
                 self.i += 2
-        except (IOError, ValueError, TypeError) as exception:
+        except (IOError, ValueError) as exception:
             self.table_error_event(exception)
 
     def table_error_event(self, exception):
