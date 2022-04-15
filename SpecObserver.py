@@ -47,7 +47,7 @@ class SpecObserver(QMainWindow):
         """
         Method creates window with error message, 
         when fits_plot raise IOError.
-        :param message: The error message.
+        :param message: exception.
         """
         QMessageBox.critical(self, type(exception).__name__, "Can't read FITS file\n" + exception.message)
 
