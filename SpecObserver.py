@@ -205,16 +205,16 @@ class SpecObserver(QMainWindow):
                 self.all_plot_items[plot_name] = current_plot
                 self.add_to_list_widget(plot_name)
                 self.i += 2
-        except IOError as exception:
-            self.cmfgen_error_event(exception.message)
+        except (IOError, ValueError) as exception:
+            self.cmfgen_error_event(exception)
 
-    def cmfgen_error_event(self, message):
+    def cmfgen_error_event(self, exception):
         """
         Method creates window with error message, 
         when cmfgen_plot raise IOError.
         :param message: The error message.
         """
-        QMessageBox.critical(self, "IOError", "Can't read CMFGEN model file\n" + message)
+        QMessageBox.critical(self, type(exception).__name__, "Can't read CMFGEN model file\n" + exception.message)
 
     def add_to_list_widget(self, name):
         """
