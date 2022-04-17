@@ -31,8 +31,8 @@ class SpecObserver(QMainWindow):
         Call add_to_list_widget with plot item name.
         """
         try:
-            fits_file, ok = QFileDialog.getOpenFileName(self, 'Open FITS file')
-            if ok:
+            fits_file = QFileDialog.getOpenFileName(self, 'Open FITS file')[0]
+            if fits_file != '':
                 wave, flux = pyasl.read1dFitsSpec(fits_file)
                 current_plot = self.pw.plot(wave, flux, pen=mkColor(self.i))
                 plot_name = fits_file.split("/")[-1]
