@@ -258,9 +258,9 @@ class SpecObserver(QMainWindow):
             self.single_plot_warning_event()
             return
 
-        export_name = unicode(QFileDialog.getSaveFileName(self, "Select Export Directory and Name"))
+        export_name = QFileDialog.getSaveFileName(self, "Select Export Directory and Name")[0]
         if export_name != '':
-            name = unicode(self.listWidget.selectedItems()[0].text())
+            name = self.listWidget.selectedItems()[0].text()
             export_name += ".data"
             np.savetxt(export_name, np.transpose(self.all_plot_items[name].getData()))
 
